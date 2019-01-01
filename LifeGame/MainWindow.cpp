@@ -83,21 +83,22 @@ void MainWindow::OnCreate()
 	CreateMainMenu();
 	CreateToolbar();
 	CreateLeftPanel();
-	OnSize();
+	CreateGridWindow();
+	worldCanvas.world = World(100, 100);
 }
 
 void MainWindow::OnSize()
 {
 	static const int TOOLBAR_HEIGHT = 30;
+	static const int STATUSBAR_HEIGHT = 22;
 	static const int LEFT_PANEL_WIDTH = 250;
-	RECT rec;
-	GetClientRect(handle, &rec);
-	SetWindowPos(leftPanel, HWND_TOP, 0, TOOLBAR_HEIGHT, LEFT_PANEL_WIDTH, rec.bottom, SWP_DRAWFRAME);
-	/*SetWindowPos(hwnd_gen_text, HWND_TOP, rec.right*0.8 + 10, 20, rec.right*0.2 - 20, 20, SWP_DRAWFRAME);
-	SetWindowPos(hwnd_cells_text, HWND_TOP, rec.right*0.8 + 10, 60, rec.right*0.2 - 20, 20, SWP_DRAWFRAME);
-	SetWindowPos(hwnd_help_text, HWND_TOP, rec.right*0.8 + 10, 150, rec.right*0.2 - 20, 80, SWP_DRAWFRAME);
-	SetWindowPos(hwnd_size_text, HWND_TOP, rec.right*0.8 + 10, 100, 50, 20, SWP_DRAWFRAME);
-	SetWindowPos(hwnd_size_edit, HWND_TOP, rec.right*0.8 + 65, 100, rec.right*0.2 - 20, 80, SWP_DRAWFRAME);*/
+	RECT rect;
+	GetClientRect(handle, &rect);
+	SetWindowPos(leftPanel, HWND_TOP, 0, TOOLBAR_HEIGHT, LEFT_PANEL_WIDTH,
+			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
+	SetWindowPos(worldCanvas.handle, HWND_TOP, LEFT_PANEL_WIDTH,
+			TOOLBAR_HEIGHT, rect.right - LEFT_PANEL_WIDTH,
+			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
 }
 
 LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
@@ -105,10 +106,9 @@ LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
 	if ((HWND)lParam == colorPanel)
 	{
 		HDC hdcStatic = HDC(wParam);
-		SetTextColor(hdcStatic, RGB(0, 0, 0));
-		SetBkColor(hdcStatic, RGB(230, 230, 230));
 		return (LRESULT)CreateSolidBrush(RGB(255, 0, 0));
 	}
+	return 0;
 }
 
 void MainWindow::CreateMainMenu()
@@ -132,11 +132,11 @@ void MainWindow::CreateMainMenu()
 void MainWindow::CreateToolbar()
 {
 	tbButtons[0].iBitmap = STD_FILENEW;
-	tbButtons[0].idCommand = ID_OPEN_GRID;
+	tbButtons[0].idCommand = ID_CLEAR_GRID;
 	tbButtons[0].fsState = TBSTATE_ENABLED;
 	tbButtons[0].fsStyle = TBSTYLE_GROUP;
 	tbButtons[1].iBitmap = STD_PROPERTIES;
-	tbButtons[1].idCommand = ID_SAVE_GRID;
+	tbButtons[1].idCommand = ID_GENERATE_GRID;
 	tbButtons[1].fsState = TBSTATE_ENABLED;
 	tbButtons[1].fsStyle = TBSTYLE_GROUP;
 	tbButtons[2].fsStyle = TBSTYLE_SEP;
@@ -157,16 +157,15 @@ void MainWindow::CreateLeftPanel()
 {
 	leftPanel = CreateWindowExA(0, "STATIC", NULL, WS_CHILD | WS_VISIBLE,
 			0, 0, 300, 300, handle, NULL, hInstance, NULL);
-	/*
-	HWND statusBar;*/
+
 	HWND label;
 	label = CreateWindowExA(0, "STATIC", "Размер поля:", WS_CHILD | WS_VISIBLE,
 			8, 40, 100, 20, handle, NULL, hInstance, NULL);
-	widthTB = CreateWindowExA(0, "EDIT", NULL, WS_CHILD | WS_VISIBLE,
+	widthTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
 			106, 40, 30, 20, handle, NULL, hInstance, NULL);
 	label = CreateWindowExA(0, "STATIC", "x", WS_CHILD | WS_VISIBLE,
 			136, 40, 10, 20, handle, NULL, hInstance, NULL);
-	heightTB = CreateWindowExA(0, "EDIT", NULL, WS_CHILD | WS_VISIBLE,
+	heightTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
 			146, 40, 30, 20, handle, NULL, hInstance, NULL);
 	setGridSizeBtn = CreateWindowExA(0, "BUTTON", "OK", WS_CHILD | WS_VISIBLE,
 			184, 40, 58, 20, handle, (HMENU)ID_SET_GRID_SIZE, hInstance, NULL);
@@ -213,21 +212,21 @@ void MainWindow::CreateLeftPanel()
 
 	label = CreateWindowExA(0, "STATIC", "Статистика:", WS_CHILD | WS_VISIBLE,
 			8, 450, 150, 20, handle, NULL, hInstance, NULL);
-	RED_RACE_PB = CreateWindowEx(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+	RED_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
 			8, 480, 150, 20, handle, NULL, hInstance, NULL);
 	RED_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
 			166, 480, 76, 20, handle, NULL, hInstance, NULL);
-	GREEN_RACE_PB = CreateWindowEx(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+	GREEN_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
 			8, 510, 150, 20, handle, NULL, hInstance, NULL);
-	RED_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+	GREEN_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
 			166, 510, 76, 20, handle, NULL, hInstance, NULL);
-	BLUE_RACE_PB = CreateWindowEx(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+	BLUE_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
 			8, 540, 150, 20, handle, NULL, hInstance, NULL);
-	RED_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+	BLUE_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
 			166, 540, 76, 20, handle, NULL, hInstance, NULL);
-	NEUTRAL_RACE_PB = CreateWindowEx(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+	NEUTRAL_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
 			8, 570, 150, 20, handle, NULL, hInstance, NULL);
-	RED_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+	NEUTRAL_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
 			166, 570, 76, 20, handle, NULL, hInstance, NULL);
 	SendMessageA(RED_RACE_PB, PBM_SETPOS, 10, 0);
 	SendMessageA(GREEN_RACE_PB, PBM_SETPOS, 20, 0);
@@ -239,6 +238,13 @@ void MainWindow::CreateLeftPanel()
 	SendMessageA(NEUTRAL_RACE_PB, PBM_SETBARCOLOR, 0, RGB(150, 150, 150));
 
 	statusBar = CreateStatusWindowA(WS_CHILD | WS_VISIBLE, "", handle, ID_STATUS_BAR);
+}
+
+void MainWindow::CreateGridWindow()
+{
+	worldCanvas = WorldWindow();
+	worldCanvas.Register("WorldWindow", hInstance);
+	worldCanvas.Create("Grid", hInstance, handle, 250, 30, 500, 500);
 }
 
 void MainWindow::OnClose()

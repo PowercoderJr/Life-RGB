@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <commctrl.h>
+#include "WorldWindow.h"
 
 #define IDR_TOOLBAR						110
 #define ID_CLEAR_GRID					40001
@@ -102,8 +103,11 @@ private:
 	HWND racesLabels[4];
 	HWND statusBar;
 
+	WorldWindow worldCanvas;
+
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
 	void CreateMainMenu();
 	void CreateToolbar();
 	void CreateLeftPanel();
+	void CreateGridWindow();
 };

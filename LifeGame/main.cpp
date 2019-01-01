@@ -6,7 +6,6 @@
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	
 	MainWindow window = MainWindow();
 	window.Register("Window", hInstance);
 	window.Create("Life", hInstance);
