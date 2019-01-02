@@ -1,5 +1,10 @@
 #include "MainWindow.h"
 
+MainWindow::MainWindow()
+{
+	;
+}
+
 bool MainWindow::Register(const char* name, HINSTANCE hInstance)
 {
 	WNDCLASSEX tag = {};
@@ -31,21 +36,21 @@ void MainWindow::Show()
 	UpdateWindow(handle);
 }
 
-LRESULT __stdcall MainWindow::windowProc(HWND hnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT __stdcall MainWindow::windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (message == WM_NCCREATE)
 	{
 		MainWindow* that = reinterpret_cast<MainWindow*>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
-		SetWindowLongA(hnd, GWL_USERDATA, reinterpret_cast<LONG>(that));
-		return DefWindowProcA(hnd, message, wParam, lParam);
+		SetWindowLongA(hwnd, GWL_USERDATA, reinterpret_cast<LONG>(that));
+		return DefWindowProcA(hwnd, message, wParam, lParam);
 	}
-	MainWindow* that = reinterpret_cast<MainWindow*>(GetWindowLongA(hnd, GWL_USERDATA));
+	MainWindow* that = reinterpret_cast<MainWindow*>(GetWindowLongA(hwnd, GWL_USERDATA));
 	switch (message)
 	{
 	case WM_CREATE:
-		that->handle = hnd;
+		that->handle = hwnd;
 		that->OnCreate();
-		return DefWindowProcA(hnd, message, wParam, lParam);
+		return DefWindowProcA(hwnd, message, wParam, lParam);
 	case WM_SIZE:
 		that->lparam = lParam;
 		that->OnSize();
@@ -58,22 +63,11 @@ LRESULT __stdcall MainWindow::windowProc(HWND hnd, UINT message, WPARAM wParam, 
 	case WM_DESTROY:
 		that->OnDestroy();
 		break;
-	/*case WM_COMMAND:
-		switch (LOWORD(wParam))
-		{
-		case ID_NEW:
-			that->NewWorld();
-			break;
-		case ID_LOAD:
-			that->LoadWorld();
-			break;
-		case ID_EXIT:
-			that->OnClose();
-			break;
-		}
-		break;*/
+	case WM_COMMAND:
+		that->OnCommand(wParam, lParam);
+		break;
 	default:
-		return DefWindowProcA(hnd, message, wParam, lParam);
+		return DefWindowProcA(hwnd, message, wParam, lParam);
 	}
 	return 0;
 }
@@ -83,8 +77,7 @@ void MainWindow::OnCreate()
 	CreateMainMenu();
 	CreateToolbar();
 	CreateLeftPanel();
-	CreateGridWindow();
-	worldCanvas.world = World(100, 100);
+	CreateWorldWindow();
 }
 
 void MainWindow::OnSize()
@@ -96,18 +89,122 @@ void MainWindow::OnSize()
 	GetClientRect(handle, &rect);
 	SetWindowPos(leftPanel, HWND_TOP, 0, TOOLBAR_HEIGHT, LEFT_PANEL_WIDTH,
 			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
-	SetWindowPos(worldCanvas.handle, HWND_TOP, LEFT_PANEL_WIDTH,
+	SetWindowPos(worldWindow.handle, HWND_TOP, LEFT_PANEL_WIDTH,
 			TOOLBAR_HEIGHT, rect.right - LEFT_PANEL_WIDTH,
 			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
+}
+
+void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+	/*char values[1024];
+	sprintf_s(values, "WPARAM: %ul, LPARAM: %ul\LO_WPARAM: %ul, LO_LPARAM: %ul\nHI_WPARAM: %ul, HI_LPARAM: %ul", wParam, lParam, LOWORD(wParam), LOWORD(lParam), HIWORD(wParam), HIWORD(lParam));
+	MessageBoxExA(0, values, "Test", 0, 0);*/
+	switch (LOWORD(wParam))
+	{
+	case ID_SET_GRID_SIZE:
+		int width, height;
+		try
+		{
+			static const int ARGS_BUF_SIZE = 4;
+			char buf[ARGS_BUF_SIZE];
+			GetWindowTextA(widthTB, buf, ARGS_BUF_SIZE);
+			width = std::stoi(buf);
+			GetWindowTextA(heightTB, buf, ARGS_BUF_SIZE);
+			height = std::stoi(buf);
+		}
+		catch (...)
+		{
+			width = -1;
+			height = -1;
+		}
+
+		if (width < 1 || width > 999 || height < 1 || height > 999)
+		{
+			MessageBoxExA(handle, "Укажите размер поля в пределах от 1х1 до 999х999",
+				"Некорректный денные", MB_ICONWARNING, NULL);
+		}
+		else
+		{
+			int dialogResult = MessageBoxExA(handle,
+				"Изменение размеров поля очистит его и обнулит текущую статистику. Продолжить?",
+				"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
+			if (dialogResult == IDYES)
+			{
+				worldWindow.world = new World(width, height);
+			}
+		}
+		break;
+	case ID_PLAY_PAUSE:
+		worldWindow.world->SetIsPaused(!worldWindow.world->IsPaused());
+		SetWindowTextA(playPauseBtn, worldWindow.world->IsPaused() ?
+			"Возобновить симуляцию" : "Приостановить симуляцию");
+		break;
+	case ID_SELECT_CELL_COLOR:
+		// TODO: убрать лишние строки 
+		CHOOSECOLOR cc;                 // common dialog box structure 
+		static COLORREF acrCustClr[16]; // array of custom colors 
+		HWND hwnd;                      // owner window
+		HBRUSH hbrush;                  // brush handle
+		static DWORD rgbCurrent;        // initial color selection
+
+										// Initialize CHOOSECOLOR 
+		ZeroMemory(&cc, sizeof(cc));
+		cc.lStructSize = sizeof(cc);
+		cc.hwndOwner = handle;
+		cc.lpCustColors = (LPDWORD)acrCustClr;
+		cc.rgbResult = rgbCurrent;
+		cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+		if (ChooseColor(&cc) == TRUE)
+		{
+			hbrush = CreateSolidBrush(cc.rgbResult);
+			rgbCurrent = cc.rgbResult;
+			worldWindow.SetBrushColor(cc.rgbResult);
+		}
+		break;
+	case ID_SELECT_CELL_COLOR_LISTBOX:
+		switch (HIWORD(wParam))
+		{
+		case LBN_SELCHANGE:
+			int count = SendMessage(colorLB, LB_GETCOUNT, 0, 0);
+			int iSelected = -1;
+			// go through the items and find the first selected one
+			for (int i = 0; i < count; i++)
+			{
+				// check if this item is selected or not..
+				if (SendMessage(colorLB, LB_GETSEL, i, 0) > 0)
+				{
+					// yes, we only want the first selected so break.
+					iSelected = i;
+					break;
+				}
+			}
+			switch (iSelected)
+			{
+			case RED_RACE_ID:
+				worldWindow.SetBrushColor(RED_COLOR_RGB);
+				break;
+			case GREEN_RACE_ID:
+				worldWindow.SetBrushColor(GREEN_COLOR_RGB);
+				break;
+			case BLUE_RACE_ID:
+				worldWindow.SetBrushColor(BLUE_COLOR_RGB);
+				break;
+			case NEUTRAL_RACE_ID:
+				worldWindow.SetBrushColor(NEUTRAL_COLOR_RGB);
+				break;
+			default:
+				break;
+			}
+			break;
+		}
+	}
 }
 
 LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
 {
 	if ((HWND)lParam == colorPanel)
-	{
-		HDC hdcStatic = HDC(wParam);
-		return (LRESULT)CreateSolidBrush(RGB(255, 0, 0));
-	}
+		return (LRESULT)worldWindow.GetBrushColor();
 	return 0;
 }
 
@@ -176,11 +273,11 @@ void MainWindow::CreateLeftPanel()
 	colorBtn = CreateWindowExA(0, "BUTTON", "Выбрать...", WS_CHILD | WS_VISIBLE,
 			162, 70, 80, 20, handle, (HMENU)ID_SELECT_CELL_COLOR, hInstance, NULL);
 	colorLB = CreateWindowExA(0, "LISTBOX", NULL, WS_CHILD | WS_VISIBLE | LBS_STANDARD &~ LBS_SORT | LBS_NOTIFY, 
-			8, 100, 234, 100, handle, NULL, hInstance, NULL);
-	SendMessageA(colorLB, LB_ADDSTRING, ID_SELECT_CELL_COLOR_RED, (LPARAM)"Красный");
-	SendMessageA(colorLB, LB_ADDSTRING, ID_SELECT_CELL_COLOR_GREEN, (LPARAM)"Зелёный");
-	SendMessageA(colorLB, LB_ADDSTRING, ID_SELECT_CELL_COLOR_BLUE, (LPARAM)"Синий");
-	SendMessageA(colorLB, LB_ADDSTRING, ID_SELECT_CELL_COLOR_NEUTRAL, (LPARAM)"Нейтральный");
+			8, 100, 234, 100, handle, (HMENU)ID_SELECT_CELL_COLOR_LISTBOX, hInstance, NULL);
+	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Красный");
+	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Зелёный");
+	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Синий");
+	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Нейтральный");
 
 	// TODO: не получается изменить значение во время выполнения
 	densityLabel = CreateWindowExA(0, "STATIC", "Интенсивность: 100", WS_CHILD | WS_VISIBLE,
@@ -195,7 +292,7 @@ void MainWindow::CreateLeftPanel()
 	drawAreaRB = CreateWindowExA(0, "BUTTON", "Рисовать области", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
 			8, 280, 200, 20, handle, (HMENU)ID_DRAW_MODE, hInstance, NULL);
 	playPauseBtn = CreateWindowExA(0, "BUTTON", "Запустить симуляцию", WS_CHILD | WS_VISIBLE,
-			8, 320, 234, 30, handle, (HMENU)ID_SELECT_CELL_COLOR, hInstance, NULL);
+			8, 320, 234, 30, handle, (HMENU)ID_PLAY_PAUSE, hInstance, NULL);
 	autostopChB = CreateWindowExA(0, "BUTTON", "Остановить, если поле чистое", WS_CHILD | WS_VISIBLE | BS_CHECKBOX,
 			8, 360, 234, 20, handle, (HMENU)ID_AUTOSTOP, hInstance, NULL);
 	label = CreateWindowExA(0, "STATIC", "Скорость симуляции:", WS_CHILD | WS_VISIBLE,
@@ -232,19 +329,20 @@ void MainWindow::CreateLeftPanel()
 	SendMessageA(GREEN_RACE_PB, PBM_SETPOS, 20, 0);
 	SendMessageA(BLUE_RACE_PB, PBM_SETPOS, 30, 0);
 	SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, 40, 0);
-	SendMessageA(RED_RACE_PB, PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
-	SendMessageA(GREEN_RACE_PB, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
-	SendMessageA(BLUE_RACE_PB, PBM_SETBARCOLOR, 0, RGB(0, 0, 255));
-	SendMessageA(NEUTRAL_RACE_PB, PBM_SETBARCOLOR, 0, RGB(150, 150, 150));
+	SendMessageA(RED_RACE_PB, PBM_SETBARCOLOR, 0, RED_COLOR_RGB);
+	SendMessageA(GREEN_RACE_PB, PBM_SETBARCOLOR, 0, GREEN_COLOR_RGB);
+	SendMessageA(BLUE_RACE_PB, PBM_SETBARCOLOR, 0, BLUE_COLOR_RGB);
+	SendMessageA(NEUTRAL_RACE_PB, PBM_SETBARCOLOR, 0, NEUTRAL_COLOR_RGB);
 
 	statusBar = CreateStatusWindowA(WS_CHILD | WS_VISIBLE, "", handle, ID_STATUS_BAR);
 }
 
-void MainWindow::CreateGridWindow()
+void MainWindow::CreateWorldWindow()
 {
-	worldCanvas = WorldWindow();
-	worldCanvas.Register("WorldWindow", hInstance);
-	worldCanvas.Create("Grid", hInstance, handle, 250, 30, 500, 500);
+	worldWindow = WorldWindow();
+	worldWindow.world = new World(100, 100);
+	worldWindow.Register("WorldWindow", hInstance);
+	worldWindow.Create("Grid", hInstance, handle, 250, 30, 500, 500);
 }
 
 void MainWindow::OnClose()

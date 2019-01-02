@@ -4,6 +4,8 @@ WorldWindow::WorldWindow()
 {	
 	generation = 0;
 	cells = NULL;
+	brushColor = 0;
+	world = nullptr;
 }
 
 bool WorldWindow::Register(const char* name, HINSTANCE hInstance)
@@ -36,6 +38,16 @@ void WorldWindow::Show()
 {
 	ShowWindow(handle, SW_SHOWNORMAL);
 	UpdateWindow(handle);
+}
+
+void WorldWindow::SetBrushColor(COLORREF brushColor)
+{
+	this->brushColor = brushColor;
+}
+
+COLORREF WorldWindow::GetBrushColor()
+{
+	return brushColor;
 }
 
 LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -89,7 +101,6 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 void WorldWindow::OnCreate()
 {
 	SetTimer(this->handle, 1, 60, NULL);
-	world.isPaused = true;
 }
 
 void WorldWindow::OnPaint()
@@ -98,19 +109,20 @@ void WorldWindow::OnPaint()
 	RECT rc;
 	GetClientRect(handle, &rc);
 
+	// TODO: иногда возвращает NULL
 	HDC hDC = BeginPaint(handle, &ps);
 	HDC cDC = CreateCompatibleDC(hDC);
 	HBITMAP cBMP = CreateCompatibleBitmap(hDC, ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top);
 
 	HBITMAP hBMP = reinterpret_cast<HBITMAP>(SelectObject(cDC, cBMP));
-	HBRUSH hBrush = CreateSolidBrush(RGB(255, 255, 255));
+	HBRUSH hBrush = CreateHatchBrush(HS_DIAGCROSS, RGB(100, 100, 100));
 	HBRUSH oBrush = reinterpret_cast<HBRUSH>(SelectObject(cDC, hBrush));
 	FillRect(cDC, &rc, hBrush);
 	SelectObject(cDC, oBrush);
 	DeleteObject(hBrush);
 
-	this->world.DrawGrid(cDC, rc);
-	this->world.DrawCells(cDC, rc);
+	this->world->DrawGrid(cDC, rc);
+	this->world->DrawCells(cDC, rc);
 
 	BitBlt(hDC,
 		ps.rcPaint.left,
@@ -130,24 +142,21 @@ void WorldWindow::OnPaint()
 
 void WorldWindow::OnTimer()
 {
-	WorldWindow* ptr = this;
-	RECT rec;
-	GetClientRect(handle, &rec);
+	/*WorldWindow* ptr = this;
+	RECT rect;
+	GetClientRect(handle, &rect);*/
+	if (!world->IsPaused())
+		world->Update();
 
-	if (!world.isPaused)
-	{
-		world.Update();
-	}
-
-	wchar_t str[200];
+	/*wchar_t str[200];
 	_itow_s(world.generation, str, 10);
 	std::wstring s1 = std::wstring(L"Generation: ");
 	std::wstring s2 = std::wstring(str);
 	SendMessageA(generation, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));
-	_itow_s(world.cellsCounter, str, 10);
+	_itow_s(world.totalCellsCount, str, 10);
 	s1 = std::wstring(L"Active cells: ");
 	s2 = std::wstring(str);
-	SendMessageA(cells, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));
+	SendMessageA(cells, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));*/
 
 	InvalidateRect(handle, NULL, FALSE);
 }
@@ -158,7 +167,7 @@ void WorldWindow::OnLButtonDown()
 	int yPos = GET_Y_LPARAM(lparam);
 	RECT rc;
 	GetClientRect(handle, &rc);
-	world.SetCell(rc, xPos, yPos, new Cell(0, 0, 0));
+	world->SetCell(rc, xPos, yPos, new Cell(brushColor));
 }
 
 void WorldWindow::OnRButtonDown()
@@ -167,12 +176,17 @@ void WorldWindow::OnRButtonDown()
 	int yPos = GET_Y_LPARAM(lparam);
 	RECT rc;
 	GetClientRect(handle, &rc);
-	world.SetCell(rc, xPos, yPos, 0);
+	world->SetCell(rc, xPos, yPos, 0);
 }
 
 void WorldWindow::OnClose()
 {
 	DestroyWindow(this->handle);
+}
+
+WorldWindow::~WorldWindow()
+{
+	delete world;
 }
 
 void WorldWindow::OnDestroy()

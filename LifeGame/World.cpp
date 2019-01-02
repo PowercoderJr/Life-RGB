@@ -1,4 +1,7 @@
 #include "World.h"
+#include <vector>
+
+using std::vector;
 
 inline int Cycled(int input, int base)
 {
@@ -13,7 +16,7 @@ World::World(int width, int height)
 	cellsBuf = vector<vector<Cell*>>(cells);
 	isPaused = true;
 	generation = 0;
-	cellsCounter = 0;
+	totalCellsCount = 0;
 }
 
 void World::DrawGrid(HDC dc, RECT rc)
@@ -34,7 +37,7 @@ void World::DrawGrid(HDC dc, RECT rc)
 
 void World::DrawCells(HDC dc, RECT rc)
 {
-	//HBRUSH hBrush = CreateSolidBrush(RGB(255, 0, 0));
+	//HBRUSH hBrush = CreateSolidBrush(RED_COLOR_RGB);
 	//HBRUSH oBrush = (HBRUSH)SelectObject(dc, hBrush);
 	RECT cellRect;
 	for (int i = 0; i < height; i++)
@@ -51,44 +54,69 @@ void World::DrawCells(HDC dc, RECT rc)
 
 void World::Update()
 {
-	cellsBuf = cells;
+	CloneGrid(cells, &cellsBuf);
 	for (int i = 0; i < height; i++)
 	{
 		for (int j = 0; j < width; j++)
 		{
-			int around = 0;
+			vector<Cell*> neighbours = vector<Cell*>();
 			for (int k = -1; k <= 1; k++)
 				for (int m = -1; m <= 1; m++)
 					if (!(m == 0 && k == 0))
-						if (cells[Cycled(i + k, height)][Cycled(j + m, width)] != nullptr)
-							++around;
+					{
+						Cell* neighbour = cells[Cycled(i + k, height)][Cycled(j + m, width)];
+						if (neighbour != nullptr)
+							neighbours.push_back(neighbour);
+					}
 
-			if (cells[i][j] != nullptr)
+			if (cells[i][j] == nullptr)
 			{
-				if (around != 2 && around != 3)
+				if (neighbours.capacity() == 3)
 				{
-					cellsBuf[i][j] = 0;
-					cellsCounter -= 1;
+					cellsBuf[i][j] = Cell::ProduceAvg(neighbours);
+					++totalCellsCount;
 				}
 			}
 			else
 			{
-				if (around == 3)
+				if (neighbours.capacity() < 2 || neighbours.capacity() > 3)
 				{
-					cellsBuf[i][j] = new Cell(0, 0, 0);
-					++cellsCounter;
+					delete cellsBuf[i][j];
+					cellsBuf[i][j] = nullptr;
+					--totalCellsCount;
 				}
 			}
 		}
 	}
-	cells = cellsBuf;
+	CloneGrid(cellsBuf, &cells);
 	generation += 1;
+}
+
+bool World::IsPaused()
+{
+	return isPaused;
+}
+
+void World::SetIsPaused(bool isPaused)
+{
+	this->isPaused = isPaused;
 }
 
 World::~World()
 {
 	for (int i = 0; i < height; ++i)
 		cells[i].clear();
+}
+
+void World::CloneGrid(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst)
+{
+	int width = src[0].size();
+	int height = src.size();
+	*dst = vector<vector<Cell*>>(height, vector<Cell*>(width, nullptr));
+	for (int i = 0; i < height; ++i)
+		for (int j = 0; j < width; ++j)
+			if (src[i][j] != nullptr)
+				(*dst)[i][j] = new Cell(src[i][j]);
 }
 
 void World::SetCell(RECT rc, int x, int y, Cell* cell)
@@ -99,10 +127,12 @@ void World::SetCell(RECT rc, int x, int y, Cell* cell)
 	if (cells[i][j] != nullptr && !cells[i][j]->Equals(cell))
 	{
 		if (cell == nullptr)
-			--cellsCounter;
+			--totalCellsCount;
 		else
-			++cellsCounter;
+			++totalCellsCount;
 	}
+	if (cells[i][j] != nullptr)
+		delete cells[i][j];
 	cells[i][j] = cell;
 
 }
@@ -146,7 +176,7 @@ void World::ReadPosition(ifstream& fin, int& x, int& y)
 			{
 			case '*':
 				cells[i++][j] = 1;
-				cellsCounter += 1;
+				totalCellsCount += 1;
 				i = Cycled(i, height);
 				break;
 			case '.':

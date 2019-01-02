@@ -7,10 +7,13 @@ public:
 	static bool Register(const char*, HINSTANCE);
 	bool Create(const char*, HINSTANCE, HWND, int, int, int, int);
 	void Show();
+	void SetBrushColor(COLORREF);
+	COLORREF GetBrushColor();
 	HWND handle;
 	HWND generation;
 	HWND cells;
-	World world;
+	World* world;
+	~WorldWindow();
 protected:
 	void OnDestroy();
 	void OnPaint();
@@ -20,6 +23,7 @@ protected:
 	void OnLButtonDown();
 	void OnRButtonDown();
 private:
+	COLORREF brushColor;
 	LPARAM lparam;
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
 };

@@ -21,13 +21,23 @@ public:
 	//int LoadPattern(string);
 	void SetCell(RECT, int, int, Cell*);
 	void Update();
-	bool isPaused;
-	int generation;
-	int cellsCounter;
+	bool IsPaused();
+	void SetIsPaused(bool isPaused);
 	~World();
 private:
 	int height;
 	int width;
 	vector<vector<Cell*>> cells;
 	vector<vector<Cell*>> cellsBuf;
+
+	bool isPaused;
+	int generation;
+	int square;
+	int totalCellsCount;
+	int redCellsCount;
+	int greenCellsCount;
+	int blueCellsCount;
+	int neutralCellsCount;
+
+	void CloneGrid(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst);
 };
