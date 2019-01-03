@@ -1,4 +1,6 @@
 #include "WorldWindow.h"
+#include <stdlib.h>
+#include <time.h>
 
 WorldWindow::WorldWindow()
 {	
@@ -6,6 +8,12 @@ WorldWindow::WorldWindow()
 	cells = NULL;
 	brushColor = 0;
 	world = nullptr;
+	isAreasMode = false;
+	areaStartI = 0;
+	areaStartJ = 0;
+	isAreaStartSelected = false;
+	areaDensity = 100;
+	srand(time(NULL));
 }
 
 bool WorldWindow::Register(const char* name, HINSTANCE hInstance)
@@ -50,6 +58,38 @@ COLORREF WorldWindow::GetBrushColor()
 	return brushColor;
 }
 
+bool WorldWindow::IsAreasMode()
+{
+	return isAreasMode;
+}
+
+void WorldWindow::SetIsAreasMode(bool isAreasMode)
+{
+	this->isAreasMode = isAreasMode;
+}
+
+void WorldWindow::SetAreaDensity(int areaDensity)
+{
+	this->areaDensity = areaDensity;
+}
+
+HWND WorldWindow::GetHandle()
+{
+	return handle;
+}
+
+World * WorldWindow::GetWorld()
+{
+	return world;
+}
+
+void WorldWindow::SetWorld(World * world)
+{
+	if (this->world != nullptr)
+		delete this->world;
+	this->world = world;
+}
+
 LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (message == WM_NCCREATE)
@@ -78,12 +118,9 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 		that->OnClose();
 		break;
 	case WM_LBUTTONDOWN:
-		that->lparam = lParam;
-		that->OnLButtonDown();
-		break;
 	case WM_RBUTTONDOWN:
 		that->lparam = lParam;
-		that->OnRButtonDown();
+		that->OnMouseButtonDown(message);
 		break;
 	/*case WM_COMMAND:
 		switch (LOWORD(wParam))
@@ -96,6 +133,15 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 		return DefWindowProcA(hnd, message, wParam, lParam);
 	}
 	return 0;
+}
+
+void WorldWindow::PixelsToCells(int * x_to_i, int * y_to_j)
+{
+	RECT rc;
+	GetClientRect(handle, &rc);
+	// TODO?: int <-> float
+	*x_to_i = *x_to_i * world->GetWidth() / (rc.right - rc.left);
+	*y_to_j = *y_to_j * world->GetHeight() / (rc.bottom - rc.top);
 }
 
 void WorldWindow::OnCreate()
@@ -161,22 +207,36 @@ void WorldWindow::OnTimer()
 	InvalidateRect(handle, NULL, FALSE);
 }
 
-void WorldWindow::OnLButtonDown()
+void WorldWindow::OnMouseButtonDown(UINT msg)
 {
-	int xPos = GET_X_LPARAM(lparam);
-	int yPos = GET_Y_LPARAM(lparam);
-	RECT rc;
-	GetClientRect(handle, &rc);
-	world->SetCell(rc, xPos, yPos, new Cell(brushColor));
-}
-
-void WorldWindow::OnRButtonDown()
-{
-	int xPos = GET_X_LPARAM(lparam);
-	int yPos = GET_Y_LPARAM(lparam);
-	RECT rc;
-	GetClientRect(handle, &rc);
-	world->SetCell(rc, xPos, yPos, 0);
+	bool isLMB = msg == WM_LBUTTONDOWN;
+	int i = GET_X_LPARAM(lparam);
+	int j = GET_Y_LPARAM(lparam);
+	PixelsToCells(&i, &j);
+	if (isAreasMode)
+	{
+		if (isAreaStartSelected)
+		{
+			int i0 = min(areaStartI, i);
+			int j0 = min(areaStartJ, j);
+			int i1 = max(areaStartI, i);
+			int j1 = max(areaStartJ, j);
+			for (int iRun = i0; iRun <= i1; ++iRun)
+				for (int jRun = j0; jRun <= j1; ++jRun)
+					if (!isLMB || rand() % 100 < areaDensity)
+						world->SetCell(iRun, jRun, isLMB ? new Cell(brushColor) : nullptr);
+		}
+		else
+		{
+			areaStartI = i;
+			areaStartJ = j;
+		}
+		isAreaStartSelected = !isAreaStartSelected;
+	}
+	else
+	{
+		world->SetCell(i, j, isLMB ? new Cell(brushColor) : nullptr);
+	}
 }
 
 void WorldWindow::OnClose()

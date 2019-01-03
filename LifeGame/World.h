@@ -19,10 +19,12 @@ public:
 	void DrawCells(HDC, RECT);
 	void ReadPosition(ifstream&, int&, int&);
 	//int LoadPattern(string);
-	void SetCell(RECT, int, int, Cell*);
+	void SetCell(int, int, Cell*);
 	void Update();
 	bool IsPaused();
 	void SetIsPaused(bool isPaused);
+	int GetWidth();
+	int GetHeight();
 	~World();
 private:
 	int height;

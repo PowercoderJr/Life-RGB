@@ -102,6 +102,16 @@ void World::SetIsPaused(bool isPaused)
 	this->isPaused = isPaused;
 }
 
+int World::GetWidth()
+{
+	return width;
+}
+
+int World::GetHeight()
+{
+	return height;
+}
+
 World::~World()
 {
 	for (int i = 0; i < height; ++i)
@@ -119,11 +129,8 @@ void World::CloneGrid(const vector<vector<Cell*>> src, vector<vector<Cell*>>* ds
 				(*dst)[i][j] = new Cell(src[i][j]);
 }
 
-void World::SetCell(RECT rc, int x, int y, Cell* cell)
+void World::SetCell(int i, int j, Cell* cell)
 {
-	// TODO?: int <-> float
-	int i = x * width / (rc.right - rc.left);
-	int j = y * height / (rc.bottom - rc.top);
 	if (cells[i][j] != nullptr && !cells[i][j]->Equals(cell))
 	{
 		if (cell == nullptr)

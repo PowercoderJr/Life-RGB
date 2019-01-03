@@ -90,8 +90,8 @@ private:
 	HWND colorPanel;
 	HWND colorBtn;
 	HWND colorLB;
-	HWND drawLineRB;
-	HWND drawAreaRB;
+	HWND drawDotsRB;
+	HWND drawAreasRB;
 	HWND densityLabel;
 	HWND densitySB;
 	HWND autostopChB;
@@ -108,4 +108,17 @@ private:
 	void CreateToolbar();
 	void CreateLeftPanel();
 	void CreateWorldWindow();
+
+	void OnClearWorldClicked(WPARAM wParam, LPARAM lParam);
+	void OnGenerateWorldClicked(WPARAM wParam, LPARAM lParam);
+	void OnOpenWorldClicked(WPARAM wParam, LPARAM lParam);
+	void OnSaveWorldClicked(WPARAM wParam, LPARAM lParam);
+	void OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam);
+	void OnDensitySbMoved(WPARAM wParam, LPARAM lParam);
+	void OnPlayPauseClicked(WPARAM wParam, LPARAM lParam);
+	void OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam);
+	void OnSelectCellColorLbClicked(WPARAM wParam, LPARAM lParam);
+	void OnDrawModeRbClicked(WPARAM wParam, LPARAM lParam);
+	/*void OnClicked(WPARAM wParam, LPARAM lParam);
+	void OnClicked(WPARAM wParam, LPARAM lParam);*/
 };

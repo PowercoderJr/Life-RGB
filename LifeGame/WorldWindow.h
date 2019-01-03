@@ -9,10 +9,12 @@ public:
 	void Show();
 	void SetBrushColor(COLORREF);
 	COLORREF GetBrushColor();
-	HWND handle;
-	HWND generation;
-	HWND cells;
-	World* world;
+	bool IsAreasMode();
+	void SetIsAreasMode(bool isAreasMode);
+	void SetAreaDensity(int areaDensity);
+	HWND GetHandle();
+	World* GetWorld();
+	void SetWorld(World* world);
 	~WorldWindow();
 protected:
 	void OnDestroy();
@@ -20,10 +22,19 @@ protected:
 	void OnTimer();
 	void OnCreate();
 	void OnClose();
-	void OnLButtonDown();
-	void OnRButtonDown();
+	void OnMouseButtonDown(UINT msg);
 private:
+	HWND handle;
+	HWND generation;
+	HWND cells;
+	World* world;
 	COLORREF brushColor;
 	LPARAM lparam;
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
+	bool isAreasMode;
+	int areaStartI;
+	int areaStartJ;
+	bool isAreaStartSelected;
+	int areaDensity;
+	void PixelsToCells(int* x_to_i, int* y_to_j);
 };

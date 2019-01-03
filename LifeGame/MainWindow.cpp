@@ -66,6 +66,9 @@ LRESULT __stdcall MainWindow::windowProc(HWND hwnd, UINT message, WPARAM wParam,
 	case WM_COMMAND:
 		that->OnCommand(wParam, lParam);
 		break;
+	case WM_HSCROLL:
+		that->OnDensitySbMoved(wParam, lParam);
+		break;
 	default:
 		return DefWindowProcA(hwnd, message, wParam, lParam);
 	}
@@ -89,7 +92,7 @@ void MainWindow::OnSize()
 	GetClientRect(handle, &rect);
 	SetWindowPos(leftPanel, HWND_TOP, 0, TOOLBAR_HEIGHT, LEFT_PANEL_WIDTH,
 			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
-	SetWindowPos(worldWindow.handle, HWND_TOP, LEFT_PANEL_WIDTH,
+	SetWindowPos(worldWindow.GetHandle(), HWND_TOP, LEFT_PANEL_WIDTH,
 			TOOLBAR_HEIGHT, rect.right - LEFT_PANEL_WIDTH,
 			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
 }
@@ -101,103 +104,24 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 	MessageBoxExA(0, values, "Test", 0, 0);*/
 	switch (LOWORD(wParam))
 	{
+	case ID_CLEAR_GRID:
+		OnClearWorldClicked(wParam, lParam);
+		break;
 	case ID_SET_GRID_SIZE:
-		int width, height;
-		try
-		{
-			static const int ARGS_BUF_SIZE = 4;
-			char buf[ARGS_BUF_SIZE];
-			GetWindowTextA(widthTB, buf, ARGS_BUF_SIZE);
-			width = std::stoi(buf);
-			GetWindowTextA(heightTB, buf, ARGS_BUF_SIZE);
-			height = std::stoi(buf);
-		}
-		catch (...)
-		{
-			width = -1;
-			height = -1;
-		}
-
-		if (width < 1 || width > 999 || height < 1 || height > 999)
-		{
-			MessageBoxExA(handle, "Укажите размер поля в пределах от 1х1 до 999х999",
-				"Некорректный денные", MB_ICONWARNING, NULL);
-		}
-		else
-		{
-			int dialogResult = MessageBoxExA(handle,
-				"Изменение размеров поля очистит его и обнулит текущую статистику. Продолжить?",
-				"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
-			if (dialogResult == IDYES)
-			{
-				worldWindow.world = new World(width, height);
-			}
-		}
+		OnSetGridSizeClicked(wParam, lParam);
 		break;
 	case ID_PLAY_PAUSE:
-		worldWindow.world->SetIsPaused(!worldWindow.world->IsPaused());
-		SetWindowTextA(playPauseBtn, worldWindow.world->IsPaused() ?
-			"Возобновить симуляцию" : "Приостановить симуляцию");
+		OnPlayPauseClicked(wParam, lParam);
 		break;
 	case ID_SELECT_CELL_COLOR:
-		// TODO: убрать лишние строки 
-		CHOOSECOLOR cc;                 // common dialog box structure 
-		static COLORREF acrCustClr[16]; // array of custom colors 
-		HWND hwnd;                      // owner window
-		HBRUSH hbrush;                  // brush handle
-		static DWORD rgbCurrent;        // initial color selection
-
-										// Initialize CHOOSECOLOR 
-		ZeroMemory(&cc, sizeof(cc));
-		cc.lStructSize = sizeof(cc);
-		cc.hwndOwner = handle;
-		cc.lpCustColors = (LPDWORD)acrCustClr;
-		cc.rgbResult = rgbCurrent;
-		cc.Flags = CC_FULLOPEN | CC_RGBINIT;
-
-		if (ChooseColor(&cc) == TRUE)
-		{
-			hbrush = CreateSolidBrush(cc.rgbResult);
-			rgbCurrent = cc.rgbResult;
-			worldWindow.SetBrushColor(cc.rgbResult);
-		}
+		OnSelectCellColorClicked(wParam, lParam);
 		break;
 	case ID_SELECT_CELL_COLOR_LISTBOX:
-		switch (HIWORD(wParam))
-		{
-		case LBN_SELCHANGE:
-			int count = SendMessage(colorLB, LB_GETCOUNT, 0, 0);
-			int iSelected = -1;
-			// go through the items and find the first selected one
-			for (int i = 0; i < count; i++)
-			{
-				// check if this item is selected or not..
-				if (SendMessage(colorLB, LB_GETSEL, i, 0) > 0)
-				{
-					// yes, we only want the first selected so break.
-					iSelected = i;
-					break;
-				}
-			}
-			switch (iSelected)
-			{
-			case RED_RACE_ID:
-				worldWindow.SetBrushColor(RED_COLOR_RGB);
-				break;
-			case GREEN_RACE_ID:
-				worldWindow.SetBrushColor(GREEN_COLOR_RGB);
-				break;
-			case BLUE_RACE_ID:
-				worldWindow.SetBrushColor(BLUE_COLOR_RGB);
-				break;
-			case NEUTRAL_RACE_ID:
-				worldWindow.SetBrushColor(NEUTRAL_COLOR_RGB);
-				break;
-			default:
-				break;
-			}
-			break;
-		}
+		OnSelectCellColorLbClicked(wParam, lParam);
+		break;
+	case ID_DRAW_MODE:
+		OnDrawModeRbClicked(wParam, lParam);
+		break;
 	}
 }
 
@@ -279,18 +203,21 @@ void MainWindow::CreateLeftPanel()
 	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Синий");
 	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Нейтральный");
 
-	// TODO: не получается изменить значение во время выполнения
+	drawDotsRB = CreateWindowExA(0, "BUTTON", "Рисовать точечно", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
+			8, 210, 200, 20, handle, (HMENU)ID_DRAW_MODE, hInstance, NULL);
+	drawAreasRB = CreateWindowExA(0, "BUTTON", "Рисовать области", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
+			8, 230, 200, 20, handle, (HMENU)ID_DRAW_MODE, hInstance, NULL);
+	SendMessageA(drawDotsRB, BM_SETCHECK, BST_CHECKED, 0);
+
 	densityLabel = CreateWindowExA(0, "STATIC", "Интенсивность: 100", WS_CHILD | WS_VISIBLE,
-			8, 210, 234, 20, handle, NULL, hInstance, NULL);
+			8, 260, 234, 20, handle, NULL, hInstance, NULL);
 	densitySB = CreateWindowExA(0, "SCROLLBAR", "", WS_CHILD | WS_VISIBLE,
-			8, 230, 234, 20, handle, (HMENU)ID_DENSITY, hInstance, NULL);
+			8, 280, 234, 20, handle, (HMENU)ID_DENSITY, hInstance, NULL);
 	SetScrollRange(densitySB, SB_CTL, 1, 100, TRUE);
 	SetScrollPos(densitySB, SB_CTL, 100, TRUE);
+	EnableWindow(densityLabel, false);
+	EnableWindow(densitySB, false);
 
-	drawLineRB = CreateWindowExA(0, "BUTTON", "Рисовать линии", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
-			8, 260, 200, 20, handle, (HMENU)ID_DRAW_MODE, hInstance, NULL);
-	drawAreaRB = CreateWindowExA(0, "BUTTON", "Рисовать области", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
-			8, 280, 200, 20, handle, (HMENU)ID_DRAW_MODE, hInstance, NULL);
 	playPauseBtn = CreateWindowExA(0, "BUTTON", "Запустить симуляцию", WS_CHILD | WS_VISIBLE,
 			8, 320, 234, 30, handle, (HMENU)ID_PLAY_PAUSE, hInstance, NULL);
 	autostopChB = CreateWindowExA(0, "BUTTON", "Остановить, если поле чистое", WS_CHILD | WS_VISIBLE | BS_CHECKBOX,
@@ -340,9 +267,162 @@ void MainWindow::CreateLeftPanel()
 void MainWindow::CreateWorldWindow()
 {
 	worldWindow = WorldWindow();
-	worldWindow.world = new World(100, 100);
+	worldWindow.SetWorld(new World(100, 100));
 	worldWindow.Register("WorldWindow", hInstance);
 	worldWindow.Create("Grid", hInstance, handle, 250, 30, 500, 500);
+}
+
+void MainWindow::OnClearWorldClicked(WPARAM wParam, LPARAM lParam)
+{
+	int dialogResult = MessageBoxExA(handle,
+		"Вы действительно хотите очистить поле?",
+		"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
+	if (dialogResult == IDYES)
+	{
+		int width = worldWindow.GetWorld()->GetWidth();
+		int height = worldWindow.GetWorld()->GetHeight();
+		worldWindow.SetWorld(new World(width, height));
+	}
+}
+
+void MainWindow::OnGenerateWorldClicked(WPARAM wParam, LPARAM lParam)
+{
+}
+
+void MainWindow::OnOpenWorldClicked(WPARAM wParam, LPARAM lParam)
+{
+}
+
+void MainWindow::OnSaveWorldClicked(WPARAM wParam, LPARAM lParam)
+{
+}
+
+void MainWindow::OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam)
+{
+	int width, height;
+	try
+	{
+		static const int ARGS_BUF_SIZE = 4;
+		char buf[ARGS_BUF_SIZE];
+		GetWindowTextA(widthTB, buf, ARGS_BUF_SIZE);
+		width = std::stoi(buf);
+		GetWindowTextA(heightTB, buf, ARGS_BUF_SIZE);
+		height = std::stoi(buf);
+	}
+	catch (...)
+	{
+		width = -1;
+		height = -1;
+	}
+
+	if (width < 1 || width > 999 || height < 1 || height > 999)
+	{
+		MessageBoxExA(handle, "Укажите размер поля в пределах от 1х1 до 999х999",
+			"Некорректный денные", MB_ICONWARNING, NULL);
+	}
+	else
+	{
+		int dialogResult = MessageBoxExA(handle,
+			"Изменение размеров поля очистит его и обнулит текущую статистику. Продолжить?",
+			"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
+		if (dialogResult == IDYES)
+		{
+			worldWindow.SetWorld(new World(width, height));
+		}
+	}
+}
+
+void MainWindow::OnDensitySbMoved(WPARAM wParam, LPARAM lParam)
+{
+	int pos = GetScrollPos(densitySB, SB_CTL);
+	switch (LOWORD(wParam))
+	{
+	case SB_LINELEFT:
+		pos -= 1;
+		break;
+	case SB_LINERIGHT:
+		pos += 1;
+		break;
+	case SB_PAGELEFT:
+		pos -= 10;
+		break;
+	case SB_PAGERIGHT:
+		pos += 10;
+		break;
+	case SB_THUMBTRACK:
+		pos = HIWORD(wParam);
+		break;
+	}
+	SetScrollPos(densitySB, SB_CTL, pos, true);
+	char buf[1024];
+	sprintf_s(buf, "Интенсивность: %d", pos);
+	SetWindowTextA(densityLabel, buf);
+	worldWindow.SetAreaDensity(pos);
+}
+
+void MainWindow::OnPlayPauseClicked(WPARAM wParam, LPARAM lParam)
+{
+	worldWindow.GetWorld()->SetIsPaused(!worldWindow.GetWorld()->IsPaused());
+	SetWindowTextA(playPauseBtn, worldWindow.GetWorld()->IsPaused() ?
+		"Возобновить симуляцию" : "Приостановить симуляцию");
+}
+
+void MainWindow::OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam)
+{
+	CHOOSECOLOR cc;
+	COLORREF acrCustClr[16];
+	ZeroMemory(&cc, sizeof(cc));
+	cc.lStructSize = sizeof(cc);
+	cc.hwndOwner = handle;
+	cc.lpCustColors = (LPDWORD)acrCustClr;
+	cc.rgbResult = worldWindow.GetBrushColor();
+	cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+	if (ChooseColorA(&cc))
+		worldWindow.SetBrushColor(cc.rgbResult);
+}
+
+void MainWindow::OnSelectCellColorLbClicked(WPARAM wParam, LPARAM lParam)
+{
+	switch (HIWORD(wParam))
+	{
+	case LBN_SELCHANGE:
+		int count = SendMessageA(colorLB, LB_GETCOUNT, 0, 0);
+		int selectedIndex = -1;
+
+		for (int i = 0; i < count && selectedIndex == -1; i++)
+			if (SendMessageA(colorLB, LB_GETSEL, i, 0) > 0)
+				selectedIndex = i;
+
+		switch (selectedIndex)
+		{
+		case RED_RACE_ID:
+			worldWindow.SetBrushColor(RED_COLOR_RGB);
+			break;
+		case GREEN_RACE_ID:
+			worldWindow.SetBrushColor(GREEN_COLOR_RGB);
+			break;
+		case BLUE_RACE_ID:
+			worldWindow.SetBrushColor(BLUE_COLOR_RGB);
+			break;
+		case NEUTRAL_RACE_ID:
+			worldWindow.SetBrushColor(NEUTRAL_COLOR_RGB);
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+}
+
+void MainWindow::OnDrawModeRbClicked(WPARAM wParam, LPARAM lParam)
+{
+	bool isAreasMode = (HWND)lParam == drawAreasRB;
+	worldWindow.SetIsAreasMode(isAreasMode);
+	SendMessageA(drawDotsRB, BM_SETCHECK, !isAreasMode, 0);
+	SendMessageA(drawAreasRB, BM_SETCHECK, isAreasMode, 0);
+	EnableWindow(densityLabel, isAreasMode);
+	EnableWindow(densitySB, isAreasMode);
 }
 
 void MainWindow::OnClose()
