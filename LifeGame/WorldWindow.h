@@ -36,5 +36,5 @@ private:
 	int areaStartJ;
 	bool isAreaStartSelected;
 	int areaDensity;
-	void PixelsToCells(int* x_to_i, int* y_to_j);
+	void CoordsToIndices(const int x, const int y, int* i, int* j);
 };

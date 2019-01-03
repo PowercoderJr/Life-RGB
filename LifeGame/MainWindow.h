@@ -84,8 +84,8 @@ private:
 	TBBUTTON tbButtons[5];
 
 	HWND leftPanel;
-	HWND widthTB;
-	HWND heightTB;
+	HWND rowsCountTB;
+	HWND colsCountTB;
 	HWND setGridSizeBtn;
 	HWND colorPanel;
 	HWND colorBtn;

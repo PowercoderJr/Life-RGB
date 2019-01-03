@@ -23,12 +23,12 @@ public:
 	void Update();
 	bool IsPaused();
 	void SetIsPaused(bool isPaused);
-	int GetWidth();
-	int GetHeight();
+	int GetRowsCount();
+	int GetColsCount();
 	~World();
 private:
-	int height;
-	int width;
+	int rowsCount;
+	int colsCount;
 	vector<vector<Cell*>> cells;
 	vector<vector<Cell*>> cellsBuf;
 
@@ -41,5 +41,6 @@ private:
 	int blueCellsCount;
 	int neutralCellsCount;
 
-	void CloneGrid(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst);
+	void CloneMatrix(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst);
+	void DeleteMatrix(vector<vector<Cell*>>* matrix);
 };

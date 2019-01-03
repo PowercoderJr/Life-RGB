@@ -8,11 +8,11 @@ inline int Cycled(int input, int base)
 	if (input >= 0) return input % base; else return base + input;
 }
 
-World::World(int width, int height)
+World::World(int rowsCount, int colsCount)
 {
-	this->width = width;
-	this->height = height;
-	cells = vector<vector<Cell*>>(height, vector<Cell*>(width, nullptr));
+	this->rowsCount = rowsCount;
+	this->colsCount = colsCount;
+	cells = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
 	cellsBuf = vector<vector<Cell*>>(cells);
 	isPaused = true;
 	generation = 0;
@@ -21,15 +21,15 @@ World::World(int width, int height)
 
 void World::DrawGrid(HDC dc, RECT rc)
 {
-	for (int i = 0; i<height; i++)
+	for (int i = 0; i < rowsCount; i++)
 	{
-		int y = i * (rc.bottom - rc.top) / height;
+		int y = i * (rc.bottom - rc.top) / rowsCount;
 		MoveToEx(dc, rc.left, y, NULL);
 		LineTo(dc, rc.right, y);
 	}
-	for (int i = 0; i<width; i++)
+	for (int i = 0; i < colsCount; i++)
 	{
-		int x = i * (rc.right - rc.left) / width;
+		int x = i * (rc.right - rc.left) / colsCount;
 		MoveToEx(dc, x, rc.top, NULL);
 		LineTo(dc, x, rc.bottom);
 	}
@@ -37,34 +37,33 @@ void World::DrawGrid(HDC dc, RECT rc)
 
 void World::DrawCells(HDC dc, RECT rc)
 {
-	//HBRUSH hBrush = CreateSolidBrush(RED_COLOR_RGB);
-	//HBRUSH oBrush = (HBRUSH)SelectObject(dc, hBrush);
 	RECT cellRect;
-	for (int i = 0; i < height; i++)
-		for (int j = 0; j < width; j++)
+	for (int i = 0; i < rowsCount; i++)
+		for (int j = 0; j < colsCount; j++)
 			if (cells[i][j] != nullptr)
 			{
-				cellRect.left = i * (rc.right - rc.left) / width;
-				cellRect.right = (i + 1) * (rc.right - rc.left) / width + 1;
-				cellRect.top = j * (rc.bottom - rc.top) / height;
-				cellRect.bottom = (j + 1) * (rc.bottom - rc.top) / height + 1;
+				// TODO: закрашивать клетки внутри границ или поверх?
+				cellRect.top = i * (rc.bottom - rc.top) / rowsCount;
+				cellRect.bottom = (i + 1) * (rc.bottom - rc.top) / rowsCount + 1;
+				cellRect.left = j * (rc.right - rc.left) / colsCount;
+				cellRect.right = (j + 1) * (rc.right - rc.left) / colsCount + 1;
 				FillRect(dc, &cellRect, cells[i][j]->GetBrush());
 			}
 }
 
 void World::Update()
 {
-	CloneGrid(cells, &cellsBuf);
-	for (int i = 0; i < height; i++)
+	CloneMatrix(cells, &cellsBuf);
+	for (int i = 0; i < rowsCount; i++)
 	{
-		for (int j = 0; j < width; j++)
+		for (int j = 0; j < colsCount; j++)
 		{
 			vector<Cell*> neighbours = vector<Cell*>();
 			for (int k = -1; k <= 1; k++)
 				for (int m = -1; m <= 1; m++)
 					if (!(m == 0 && k == 0))
 					{
-						Cell* neighbour = cells[Cycled(i + k, height)][Cycled(j + m, width)];
+						Cell* neighbour = cells[Cycled(i + k, rowsCount)][Cycled(j + m, colsCount)];
 						if (neighbour != nullptr)
 							neighbours.push_back(neighbour);
 					}
@@ -88,7 +87,9 @@ void World::Update()
 			}
 		}
 	}
-	CloneGrid(cellsBuf, &cells);
+	DeleteMatrix(&cells);
+	CloneMatrix(cellsBuf, &cells);
+	DeleteMatrix(&cellsBuf);
 	generation += 1;
 }
 
@@ -102,31 +103,43 @@ void World::SetIsPaused(bool isPaused)
 	this->isPaused = isPaused;
 }
 
-int World::GetWidth()
+int World::GetColsCount()
 {
-	return width;
+	return colsCount;
 }
 
-int World::GetHeight()
+int World::GetRowsCount()
 {
-	return height;
+	return rowsCount;
 }
 
 World::~World()
 {
-	for (int i = 0; i < height; ++i)
-		cells[i].clear();
+	DeleteMatrix(&cells);
 }
 
-void World::CloneGrid(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst)
+void World::CloneMatrix(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst)
 {
-	int width = src[0].size();
-	int height = src.size();
-	*dst = vector<vector<Cell*>>(height, vector<Cell*>(width, nullptr));
-	for (int i = 0; i < height; ++i)
-		for (int j = 0; j < width; ++j)
+	int colsCount = src[0].size();
+	int rowsCount = src.size();
+	*dst = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
+	for (int i = 0; i < rowsCount; ++i)
+		for (int j = 0; j < colsCount; ++j)
 			if (src[i][j] != nullptr)
 				(*dst)[i][j] = new Cell(src[i][j]);
+}
+
+void World::DeleteMatrix(vector<vector<Cell*>>* matrix)
+{
+	for (int i = 0; i < rowsCount; ++i)
+	{
+		for (int j = 0; j < colsCount; ++j)
+			delete (*matrix)[i][j];
+		(*matrix)[i].clear();
+		(*matrix)[i].shrink_to_fit();
+	}
+	(*matrix).clear();
+	(*matrix).shrink_to_fit();
 }
 
 void World::SetCell(int i, int j, Cell* cell)
@@ -151,10 +164,10 @@ void World::ReadPosition(ifstream& fin, int& x, int& y)
 	x = atoi(str.c_str());
 	fin >> str;
 	y = atoi(str.c_str());
-	x += width / 2;
-	y += height / 2;
-	x = Cycled(x, width);
-	y = Cycled(y, height);
+	x += colsCount / 2;
+	y += rowsCount / 2;
+	x = Cycled(x, colsCount);
+	y = Cycled(y, rowsCount);
 }
 
 /*int World::LoadPattern(string path)
@@ -184,15 +197,15 @@ void World::ReadPosition(ifstream& fin, int& x, int& y)
 			case '*':
 				cells[i++][j] = 1;
 				totalCellsCount += 1;
-				i = Cycled(i, height);
+				i = Cycled(i, rowsCount);
 				break;
 			case '.':
 				cells[i++][j] = 0;
-				i = Cycled(i, height);
+				i = Cycled(i, rowsCount);
 				break;
 			case '\n':
 				i = x;
-				j = Cycled(++j, width);
+				j = Cycled(++j, colsCount);
 				break;
 			default:
 				break;

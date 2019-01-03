@@ -182,11 +182,11 @@ void MainWindow::CreateLeftPanel()
 	HWND label;
 	label = CreateWindowExA(0, "STATIC", "Размер поля:", WS_CHILD | WS_VISIBLE,
 			8, 40, 100, 20, handle, NULL, hInstance, NULL);
-	widthTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
+	rowsCountTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
 			106, 40, 30, 20, handle, NULL, hInstance, NULL);
 	label = CreateWindowExA(0, "STATIC", "x", WS_CHILD | WS_VISIBLE,
 			136, 40, 10, 20, handle, NULL, hInstance, NULL);
-	heightTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
+	colsCountTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
 			146, 40, 30, 20, handle, NULL, hInstance, NULL);
 	setGridSizeBtn = CreateWindowExA(0, "BUTTON", "OK", WS_CHILD | WS_VISIBLE,
 			184, 40, 58, 20, handle, (HMENU)ID_SET_GRID_SIZE, hInstance, NULL);
@@ -279,9 +279,9 @@ void MainWindow::OnClearWorldClicked(WPARAM wParam, LPARAM lParam)
 		"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
 	if (dialogResult == IDYES)
 	{
-		int width = worldWindow.GetWorld()->GetWidth();
-		int height = worldWindow.GetWorld()->GetHeight();
-		worldWindow.SetWorld(new World(width, height));
+		int colsCount = worldWindow.GetWorld()->GetColsCount();
+		int rowsCount = worldWindow.GetWorld()->GetRowsCount();
+		worldWindow.SetWorld(new World(rowsCount, colsCount));
 	}
 }
 
@@ -299,25 +299,25 @@ void MainWindow::OnSaveWorldClicked(WPARAM wParam, LPARAM lParam)
 
 void MainWindow::OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam)
 {
-	int width, height;
+	int colsCount, rowsCount;
 	try
 	{
 		static const int ARGS_BUF_SIZE = 4;
 		char buf[ARGS_BUF_SIZE];
-		GetWindowTextA(widthTB, buf, ARGS_BUF_SIZE);
-		width = std::stoi(buf);
-		GetWindowTextA(heightTB, buf, ARGS_BUF_SIZE);
-		height = std::stoi(buf);
+		GetWindowTextA(rowsCountTB, buf, ARGS_BUF_SIZE);
+		rowsCount = std::stoi(buf);
+		GetWindowTextA(colsCountTB, buf, ARGS_BUF_SIZE);
+		colsCount = std::stoi(buf);
 	}
 	catch (...)
 	{
-		width = -1;
-		height = -1;
+		rowsCount = -1;
+		colsCount = -1;
 	}
 
-	if (width < 1 || width > 999 || height < 1 || height > 999)
+	if (rowsCount < 1 || rowsCount > 300 || colsCount < 1 || colsCount > 300)
 	{
-		MessageBoxExA(handle, "Укажите размер поля в пределах от 1х1 до 999х999",
+		MessageBoxExA(handle, "Укажите размер поля в пределах от 1х1 до 300x300",
 			"Некорректный денные", MB_ICONWARNING, NULL);
 	}
 	else
@@ -327,7 +327,7 @@ void MainWindow::OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam)
 			"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
 		if (dialogResult == IDYES)
 		{
-			worldWindow.SetWorld(new World(width, height));
+			worldWindow.SetWorld(new World(rowsCount, colsCount));
 		}
 	}
 }

@@ -135,13 +135,13 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 	return 0;
 }
 
-void WorldWindow::PixelsToCells(int * x_to_i, int * y_to_j)
+void WorldWindow::CoordsToIndices(const int x, const int y, int* i, int* j)
 {
 	RECT rc;
 	GetClientRect(handle, &rc);
 	// TODO?: int <-> float
-	*x_to_i = *x_to_i * world->GetWidth() / (rc.right - rc.left);
-	*y_to_j = *y_to_j * world->GetHeight() / (rc.bottom - rc.top);
+	*i = y * world->GetRowsCount() / (rc.bottom - rc.top);
+	*j = x * world->GetColsCount() / (rc.right - rc.left);
 }
 
 void WorldWindow::OnCreate()
@@ -210,9 +210,8 @@ void WorldWindow::OnTimer()
 void WorldWindow::OnMouseButtonDown(UINT msg)
 {
 	bool isLMB = msg == WM_LBUTTONDOWN;
-	int i = GET_X_LPARAM(lparam);
-	int j = GET_Y_LPARAM(lparam);
-	PixelsToCells(&i, &j);
+	int i, j;
+	CoordsToIndices(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam), &i, &j);
 	if (isAreasMode)
 	{
 		if (isAreaStartSelected)
