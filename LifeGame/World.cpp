@@ -13,7 +13,6 @@ World::World(int rowsCount, int colsCount)
 	this->rowsCount = rowsCount;
 	this->colsCount = colsCount;
 	cells = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
-	//cellsCopy = vector<vector<Cell*>>(cells);
 	generation = 0;
 	totalCellsCount = 0;
 }
@@ -63,28 +62,23 @@ void World::Update()
 				for (int m = -1; m <= 1; m++)
 					if (!(m == 0 && k == 0))
 					{
-						Cell* neighbour = /*cells*/cellsCopy[Cycled(i + k, rowsCount)][Cycled(j + m, colsCount)];
+						Cell* neighbour = cellsCopy[Cycled(i + k, rowsCount)][Cycled(j + m, colsCount)];
 						if (neighbour != nullptr)
 							neighbours.push_back(neighbour);
 					}
 
-			if (/*cells*/cellsCopy[i][j] == nullptr)
+			if (cellsCopy[i][j] == nullptr)
 			{
 				if (neighbours.capacity() == 3)
 				{
-					/*cellsCopy*///cells[i][j] = Cell::ProduceAvg(neighbours);
 					SetCell(i, j, Cell::ProduceAvg(neighbours));
-					//++totalCellsCount;
 				}
 			}
 			else
 			{
 				if (neighbours.capacity() < 2 || neighbours.capacity() > 3)
 				{
-					//delete /*cellsCopy*/cells[i][j];
-					//*cellsCopy*/cells[i][j] = nullptr;
 					SetCell(i, j, nullptr);
-					//--totalCellsCount;
 				}
 			}
 		}
@@ -92,16 +86,6 @@ void World::Update()
 	DeleteMatrix(&cellsCopy);
 	++generation;
 }
-
-/*bool World::IsPaused()
-{
-	return isPaused;
-}
-
-void World::SetIsPaused(bool isPaused)
-{
-	this->isPaused = isPaused;
-}*/
 
 int World::GetColsCount()
 {
@@ -154,16 +138,6 @@ void World::DeleteMatrix(vector<vector<Cell*>>* matrix)
 
 void World::SetCell(int i, int j, Cell* cell)
 {
-	/*if (cells[i][j] != nullptr && !cells[i][j]->Equals(cell))
-	{
-		if (cell == nullptr)
-			--totalCellsCount;
-		else
-			++totalCellsCount;
-	}
-	if (cells[i][j] != nullptr)
-		delete cells[i][j];
-	cells[i][j] = cell;*/
 	if (cells[i][j] == nullptr)
 	{
 		if (cell != nullptr)

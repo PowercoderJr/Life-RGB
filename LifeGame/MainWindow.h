@@ -29,14 +29,14 @@
 #define ID_STATUS_BAR					40023
 #define ID_WORLD_WINDOW					40024
 
-#define RED_RACE_PB racesPBs[RED_RACE_ID]
+/*#define RED_RACE_PB racesPBs[RED_RACE_ID]
 #define RED_RACE_LABEL racesLabels[RED_RACE_ID]
 #define GREEN_RACE_PB racesPBs[GREEN_RACE_ID]
 #define GREEN_RACE_LABEL racesLabels[GREEN_RACE_ID]
 #define BLUE_RACE_PB racesPBs[BLUE_RACE_ID]
 #define BLUE_RACE_LABEL racesLabels[BLUE_RACE_ID]
 #define NEUTRAL_RACE_PB racesPBs[NEUTRAL_RACE_ID]
-#define NEUTRAL_RACE_LABEL racesLabels[NEUTRAL_RACE_ID]
+#define NEUTRAL_RACE_LABEL racesLabels[NEUTRAL_RACE_ID]*/
 
 /*
 Dialog - выбор цвета
@@ -100,8 +100,8 @@ private:
 	HWND autostopChB;
 	HWND playPauseBtn;
 	HWND speedCB;
-	HWND racesPBs[4];
-	HWND racesLabels[4];
+	HWND racesPBs[RACES_COUNT];
+	HWND racesLabels[RACES_COUNT];
 	HWND statusBar;
 
 	WorldWindow worldWindow;

@@ -239,6 +239,7 @@ void WorldWindow::OnMouseButtonDown(UINT msg)
 		world->SetCell(i, j, isLMB ? new Cell(brushColor) : nullptr);
 	}
 	InvalidateRect(handle, NULL, FALSE);
+	SendMessageA(GetParent(handle), WM_COMMAND, (WPARAM)GetMenu(handle), lparam);
 }
 
 void WorldWindow::OnClose()

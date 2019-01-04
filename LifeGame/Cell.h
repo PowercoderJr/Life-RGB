@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <vector>
 
+#define RACES_COUNT 4
 #define RED_RACE_ID 0
 #define RED_COLOR_RGB RGB(255, 0, 0)
 #define GREEN_RACE_ID 1

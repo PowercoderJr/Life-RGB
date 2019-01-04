@@ -21,8 +21,6 @@ public:
 	//int LoadPattern(string);
 	void SetCell(int, int, Cell*);
 	void Update();
-	/*bool IsPaused();
-	void SetIsPaused(bool isPaused);*/
 	int GetRowsCount();
 	int GetColsCount();
 	int GetTotalCellsCount();
@@ -32,13 +30,11 @@ private:
 	int rowsCount;
 	int colsCount;
 	vector<vector<Cell*>> cells;
-	//vector<vector<Cell*>> cellsCopy;
 
-	//bool isPaused;
 	int generation;
 	int square;
 	int totalCellsCount;
-	int racesCellsCount[4];
+	int racesCellsCount[RACES_COUNT];
 
 	void CloneMatrix(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst);
 	void DeleteMatrix(vector<vector<Cell*>>* matrix);

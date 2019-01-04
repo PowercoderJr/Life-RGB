@@ -1,4 +1,8 @@
 #include "MainWindow.h"
+#include <time.h>
+
+const COLORREF colors[RACES_COUNT] = { RED_COLOR_RGB, GREEN_COLOR_RGB, BLUE_COLOR_RGB, NEUTRAL_COLOR_RGB };
+const char colorNames[RACES_COUNT][32] = { "Красный", "Зелёный", "Синий", "Нейтральный" };
 
 MainWindow::MainWindow()
 {
@@ -210,10 +214,8 @@ void MainWindow::CreateLeftPanel()
 			162, 70, 80, 20, handle, (HMENU)ID_SELECT_CELL_COLOR, hInstance, NULL);
 	colorLB = CreateWindowExA(0, "LISTBOX", NULL, WS_CHILD | WS_VISIBLE | LBS_STANDARD &~ LBS_SORT | LBS_NOTIFY, 
 			8, 100, 234, 100, handle, (HMENU)ID_SELECT_CELL_COLOR_LISTBOX, hInstance, NULL);
-	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Красный");
-	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Зелёный");
-	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Синий");
-	SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)"Нейтральный");
+	for (int i = 0; i < RACES_COUNT; ++i)
+		SendMessageA(colorLB, LB_ADDSTRING, NULL, (LPARAM)colorNames[i]);
 
 	drawDotsRB = CreateWindowExA(0, "BUTTON", "Рисовать точечно", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
 			8, 210, 200, 20, handle, (HMENU)ID_DRAW_MODE, hInstance, NULL);
@@ -248,30 +250,36 @@ void MainWindow::CreateLeftPanel()
 
 	label = CreateWindowExA(0, "STATIC", "Статистика:", WS_CHILD | WS_VISIBLE,
 			8, 450, 150, 20, handle, NULL, hInstance, NULL);
-	RED_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 480, 150, 20, handle, NULL, hInstance, NULL);
+
+	for (int i = 0; i < RACES_COUNT; ++i)
+	{
+		int top = 480 + 30 * i;
+		racesPBs[i] = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+			8, top, 134, 20, handle, NULL, hInstance, NULL);
+		racesLabels[i] = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+			150, top, 76, 20, handle, NULL, hInstance, NULL);
+		SendMessageA(racesPBs[i], PBM_SETBARCOLOR, 0, colors[i]);
+	}
+	/*RED_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+			8, 480, 134, 20, handle, NULL, hInstance, NULL);
 	RED_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			166, 480, 76, 20, handle, NULL, hInstance, NULL);
+			150, 480, 76, 20, handle, NULL, hInstance, NULL);
 	GREEN_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 510, 150, 20, handle, NULL, hInstance, NULL);
+			8, 510, 134, 20, handle, NULL, hInstance, NULL);
 	GREEN_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			166, 510, 76, 20, handle, NULL, hInstance, NULL);
+			150, 510, 76, 20, handle, NULL, hInstance, NULL);
 	BLUE_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 540, 150, 20, handle, NULL, hInstance, NULL);
+			8, 540, 134, 20, handle, NULL, hInstance, NULL);
 	BLUE_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			166, 540, 76, 20, handle, NULL, hInstance, NULL);
+			150, 540, 76, 20, handle, NULL, hInstance, NULL);
 	NEUTRAL_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 570, 150, 20, handle, NULL, hInstance, NULL);
+			8, 570, 134, 20, handle, NULL, hInstance, NULL);
 	NEUTRAL_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			166, 570, 76, 20, handle, NULL, hInstance, NULL);
-	/*SendMessageA(RED_RACE_PB, PBM_SETPOS, 10, 0);
-	SendMessageA(GREEN_RACE_PB, PBM_SETPOS, 20, 0);
-	SendMessageA(BLUE_RACE_PB, PBM_SETPOS, 30, 0);
-	SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, 40, 0);*/
+			150, 570, 76, 20, handle, NULL, hInstance, NULL);
 	SendMessageA(RED_RACE_PB, PBM_SETBARCOLOR, 0, RED_COLOR_RGB);
 	SendMessageA(GREEN_RACE_PB, PBM_SETBARCOLOR, 0, GREEN_COLOR_RGB);
 	SendMessageA(BLUE_RACE_PB, PBM_SETBARCOLOR, 0, BLUE_COLOR_RGB);
-	SendMessageA(NEUTRAL_RACE_PB, PBM_SETBARCOLOR, 0, NEUTRAL_COLOR_RGB);
+	SendMessageA(NEUTRAL_RACE_PB, PBM_SETBARCOLOR, 0, NEUTRAL_COLOR_RGB);*/
 
 	statusBar = CreateStatusWindowA(WS_CHILD | WS_VISIBLE, "", handle, ID_STATUS_BAR);
 }
@@ -458,47 +466,42 @@ void MainWindow::OnWorldWindowClicked(WPARAM wParam, LPARAM lParam)
 
 void MainWindow::DisplayStats()
 {
-	// TODO: распихать контролы по массивам и работать из цикла
-	char labelTexts[4][32];
 	int total = worldWindow.GetWorld()->GetTotalCellsCount();
 	if (total == 0)
 	{
-		for (int i = 0; i < 4; ++i)
-			sprintf_s(labelTexts[i], "\0");
-		SendMessageA(RED_RACE_PB, PBM_SETPOS, 0, 0);
-		SendMessageA(GREEN_RACE_PB, PBM_SETPOS, 0, 0);
-		SendMessageA(BLUE_RACE_PB, PBM_SETPOS, 0, 0);
-		SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, 0, 0);
+		for (int i = 0; i < RACES_COUNT; ++i)
+		{
+			SendMessageA(racesPBs[i], PBM_SETPOS, 0, 0);
+			SetWindowTextA(racesLabels[i], "\0");
+		}
 	}
 	else
 	{
-		int progressValues[4];
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < RACES_COUNT; ++i)
 		{
 			int rc = worldWindow.GetWorld()->GetCellsCountByRace((Cell::Race)i);
-			progressValues[i] = rc * 100 / total;
-			sprintf_s(labelTexts[i], "%5d/%-5d\0", rc, total);
+			int percentage = rc * 100 / total;
+			SendMessageA(racesPBs[i], PBM_SETPOS, percentage, 0);
+			char buf[32];
+			sprintf_s(buf, "%5d (%d%%)", rc, percentage);
+			SetWindowTextA(racesLabels[i], buf);
 		}
-		SendMessageA(RED_RACE_PB, PBM_SETPOS, progressValues[RED_RACE_ID], 0);
-		SendMessageA(GREEN_RACE_PB, PBM_SETPOS, progressValues[GREEN_RACE_ID], 0);
-		SendMessageA(BLUE_RACE_PB, PBM_SETPOS, progressValues[BLUE_RACE_ID], 0);
-		SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, progressValues[NEUTRAL_RACE_ID], 0);
 	}
-	SetWindowTextA(RED_RACE_LABEL, labelTexts[RED_RACE_ID]);
-	SetWindowTextA(GREEN_RACE_LABEL, labelTexts[GREEN_RACE_ID]);
-	SetWindowTextA(BLUE_RACE_LABEL, labelTexts[BLUE_RACE_ID]);
-	SetWindowTextA(NEUTRAL_RACE_LABEL, labelTexts[NEUTRAL_RACE_ID]);
 }
 
 DWORD MainWindow::LifeThreadFunction(LPVOID param)
 {
-	MainWindow* that = (MainWindow*)param;
+	MainWindow* that = (MainWindow*)param; 
 	while (!that->isClosing)
 	{
+		DWORD startMs = GetTickCount();
 		that->worldWindow.GetWorld()->Update();
 		that->DisplayStats();
 		InvalidateRect(that->worldWindow.GetHandle(), NULL, FALSE);
-		Sleep(LIFE_TICK_PERIOD_MS);
+		DWORD elapsedMs = GetTickCount() - startMs;
+		DWORD delayMs = LIFE_TICK_PERIOD_MS - elapsedMs;
+		if (delayMs > 0)
+			Sleep(delayMs);
 	}
 	return 0;
 }
