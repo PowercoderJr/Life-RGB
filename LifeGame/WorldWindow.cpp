@@ -1,19 +1,17 @@
 #include "WorldWindow.h"
 #include <stdlib.h>
-#include <time.h>
 
 WorldWindow::WorldWindow()
 {	
 	generation = 0;
 	cells = NULL;
-	brushColor = 0;
 	world = nullptr;
 	isAreasMode = false;
 	areaStartI = 0;
 	areaStartJ = 0;
 	isAreaStartSelected = false;
 	areaDensity = 100;
-	srand(time(NULL));
+	SetBrushColor(0);
 }
 
 bool WorldWindow::Register(const char* name, HINSTANCE hInstance)
@@ -34,10 +32,10 @@ bool WorldWindow::Register(const char* name, HINSTANCE hInstance)
 	return RegisterClassExA(&tag) != 0;
 }
 
-bool WorldWindow::Create(const char* name, HINSTANCE hInstance, HWND hnd, int x, int y, int w, int h)
+bool WorldWindow::Create(const char* name, int x, int y, int w, int h, HWND hwnd, HMENU hMenu, HINSTANCE hInstance)
 {
 	handle = CreateWindowExA(0, "WorldWindow", name, WS_CHILD | WS_BORDER,
-			x, y, w, h, hnd, 0, hInstance, this);
+			x, y, w, h, hwnd, hMenu, hInstance, this);
 	this->Show();
 	return true;
 }
@@ -51,11 +49,18 @@ void WorldWindow::Show()
 void WorldWindow::SetBrushColor(COLORREF brushColor)
 {
 	this->brushColor = brushColor;
+	DeleteObject(brush);
+	brush = CreateSolidBrush(this->brushColor);
 }
 
 COLORREF WorldWindow::GetBrushColor()
 {
 	return brushColor;
+}
+
+HBRUSH WorldWindow::GetBrush()
+{
+	return brush;
 }
 
 bool WorldWindow::IsAreasMode()
@@ -66,6 +71,11 @@ bool WorldWindow::IsAreasMode()
 void WorldWindow::SetIsAreasMode(bool isAreasMode)
 {
 	this->isAreasMode = isAreasMode;
+}
+
+void WorldWindow::SetIsAreaStartSelected(bool isAreaStartSelected)
+{
+	this->isAreaStartSelected = isAreaStartSelected;
 }
 
 void WorldWindow::SetAreaDensity(int areaDensity)
@@ -109,7 +119,7 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 		that->OnPaint();
 		break;
 	case WM_TIMER:
-		that->OnTimer();
+		//that->OnTimer();
 		break;
 	case WM_DESTROY:
 		that->OnDestroy();
@@ -122,13 +132,6 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 		that->lparam = lParam;
 		that->OnMouseButtonDown(message);
 		break;
-	/*case WM_COMMAND:
-		switch (LOWORD(wParam))
-		{
-		case ID_PAUSE:
-			that->world.paused = !that->world.paused;
-			break;
-		}*/
 	default:
 		return DefWindowProcA(hnd, message, wParam, lParam);
 	}
@@ -139,7 +142,6 @@ void WorldWindow::CoordsToIndices(const int x, const int y, int* i, int* j)
 {
 	RECT rc;
 	GetClientRect(handle, &rc);
-	// TODO?: int <-> float
 	*i = y * world->GetRowsCount() / (rc.bottom - rc.top);
 	*j = x * world->GetColsCount() / (rc.right - rc.left);
 }
@@ -186,11 +188,11 @@ void WorldWindow::OnPaint()
 	EndPaint(handle, &ps);
 }
 
-void WorldWindow::OnTimer()
+/*void WorldWindow::OnTimer()
 {
 	/*WorldWindow* ptr = this;
 	RECT rect;
-	GetClientRect(handle, &rect);*/
+	GetClientRect(handle, &rect);*
 	if (!world->IsPaused())
 		world->Update();
 
@@ -202,10 +204,10 @@ void WorldWindow::OnTimer()
 	_itow_s(world.totalCellsCount, str, 10);
 	s1 = std::wstring(L"Active cells: ");
 	s2 = std::wstring(str);
-	SendMessageA(cells, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));*/
+	SendMessageA(cells, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));*
 
 	InvalidateRect(handle, NULL, FALSE);
-}
+}*/
 
 void WorldWindow::OnMouseButtonDown(UINT msg)
 {
@@ -236,6 +238,7 @@ void WorldWindow::OnMouseButtonDown(UINT msg)
 	{
 		world->SetCell(i, j, isLMB ? new Cell(brushColor) : nullptr);
 	}
+	InvalidateRect(handle, NULL, FALSE);
 }
 
 void WorldWindow::OnClose()
@@ -245,6 +248,7 @@ void WorldWindow::OnClose()
 
 WorldWindow::~WorldWindow()
 {
+	DeleteObject(brush);
 	delete world;
 }
 

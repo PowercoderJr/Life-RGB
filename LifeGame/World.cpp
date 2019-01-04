@@ -13,8 +13,7 @@ World::World(int rowsCount, int colsCount)
 	this->rowsCount = rowsCount;
 	this->colsCount = colsCount;
 	cells = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
-	cellsBuf = vector<vector<Cell*>>(cells);
-	isPaused = true;
+	//cellsCopy = vector<vector<Cell*>>(cells);
 	generation = 0;
 	totalCellsCount = 0;
 }
@@ -53,7 +52,8 @@ void World::DrawCells(HDC dc, RECT rc)
 
 void World::Update()
 {
-	CloneMatrix(cells, &cellsBuf);
+	vector<vector<Cell*>> cellsCopy;
+	CloneMatrix(cells, &cellsCopy);
 	for (int i = 0; i < rowsCount; i++)
 	{
 		for (int j = 0; j < colsCount; j++)
@@ -63,37 +63,37 @@ void World::Update()
 				for (int m = -1; m <= 1; m++)
 					if (!(m == 0 && k == 0))
 					{
-						Cell* neighbour = cells[Cycled(i + k, rowsCount)][Cycled(j + m, colsCount)];
+						Cell* neighbour = /*cells*/cellsCopy[Cycled(i + k, rowsCount)][Cycled(j + m, colsCount)];
 						if (neighbour != nullptr)
 							neighbours.push_back(neighbour);
 					}
 
-			if (cells[i][j] == nullptr)
+			if (/*cells*/cellsCopy[i][j] == nullptr)
 			{
 				if (neighbours.capacity() == 3)
 				{
-					cellsBuf[i][j] = Cell::ProduceAvg(neighbours);
-					++totalCellsCount;
+					/*cellsCopy*///cells[i][j] = Cell::ProduceAvg(neighbours);
+					SetCell(i, j, Cell::ProduceAvg(neighbours));
+					//++totalCellsCount;
 				}
 			}
 			else
 			{
 				if (neighbours.capacity() < 2 || neighbours.capacity() > 3)
 				{
-					delete cellsBuf[i][j];
-					cellsBuf[i][j] = nullptr;
-					--totalCellsCount;
+					//delete /*cellsCopy*/cells[i][j];
+					//*cellsCopy*/cells[i][j] = nullptr;
+					SetCell(i, j, nullptr);
+					//--totalCellsCount;
 				}
 			}
 		}
 	}
-	DeleteMatrix(&cells);
-	CloneMatrix(cellsBuf, &cells);
-	DeleteMatrix(&cellsBuf);
-	generation += 1;
+	DeleteMatrix(&cellsCopy);
+	++generation;
 }
 
-bool World::IsPaused()
+/*bool World::IsPaused()
 {
 	return isPaused;
 }
@@ -101,11 +101,21 @@ bool World::IsPaused()
 void World::SetIsPaused(bool isPaused)
 {
 	this->isPaused = isPaused;
-}
+}*/
 
 int World::GetColsCount()
 {
 	return colsCount;
+}
+
+int World::GetTotalCellsCount()
+{
+	return totalCellsCount;
+}
+
+int World::GetCellsCountByRace(Cell::Race race)
+{
+	return racesCellsCount[race];
 }
 
 int World::GetRowsCount()
@@ -144,7 +154,7 @@ void World::DeleteMatrix(vector<vector<Cell*>>* matrix)
 
 void World::SetCell(int i, int j, Cell* cell)
 {
-	if (cells[i][j] != nullptr && !cells[i][j]->Equals(cell))
+	/*if (cells[i][j] != nullptr && !cells[i][j]->Equals(cell))
 	{
 		if (cell == nullptr)
 			--totalCellsCount;
@@ -153,8 +163,25 @@ void World::SetCell(int i, int j, Cell* cell)
 	}
 	if (cells[i][j] != nullptr)
 		delete cells[i][j];
+	cells[i][j] = cell;*/
+	if (cells[i][j] == nullptr)
+	{
+		if (cell != nullptr)
+		{
+			++totalCellsCount;
+			++racesCellsCount[cell->GetRace()];
+		}
+	}
+	else
+	{
+		--racesCellsCount[cells[i][j]->GetRace()];
+		delete cells[i][j];
+		if (cell != nullptr)
+			++racesCellsCount[cell->GetRace()];
+		else
+			--totalCellsCount;
+	}
 	cells[i][j] = cell;
-
 }
 
 void World::ReadPosition(ifstream& fin, int& x, int& y)

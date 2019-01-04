@@ -3,9 +3,12 @@
 #include <string.h>
 #include <tchar.h>
 #include "MainWindow.h"
+#include <stdlib.h>
+#include <time.h>
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	srand(time(NULL));
 	MainWindow window = MainWindow();
 	window.Register("Window", hInstance);
 	window.Create("Life", hInstance);

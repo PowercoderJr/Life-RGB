@@ -27,6 +27,7 @@
 #define ID_SPEED_x8						40021
 #define ID_SPEED_x16					40022
 #define ID_STATUS_BAR					40023
+#define ID_WORLD_WINDOW					40024
 
 #define RED_RACE_PB racesPBs[RED_RACE_ID]
 #define RED_RACE_LABEL racesLabels[RED_RACE_ID]
@@ -55,6 +56,8 @@ EditBox - размер поля, плотность населения
 class MainWindow
 {
 public:
+	static const int LIFE_TICK_PERIOD_MS = 1000;
+
 	MainWindow();
 	static bool Register(const char*, HINSTANCE);
 	bool Create(const char*, HINSTANCE);
@@ -102,8 +105,12 @@ private:
 	HWND statusBar;
 
 	WorldWindow worldWindow;
+	HANDLE lifeThread;
+	bool isPaused;
+	bool isClosing;
 
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
+	static DWORD WINAPI LifeThreadFunction(LPVOID param);
 	void CreateMainMenu();
 	void CreateToolbar();
 	void CreateLeftPanel();
@@ -119,6 +126,9 @@ private:
 	void OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam);
 	void OnSelectCellColorLbClicked(WPARAM wParam, LPARAM lParam);
 	void OnDrawModeRbClicked(WPARAM wParam, LPARAM lParam);
-	/*void OnClicked(WPARAM wParam, LPARAM lParam);
-	void OnClicked(WPARAM wParam, LPARAM lParam);*/
+	void OnWorldWindowClicked(WPARAM wParam, LPARAM lParam);
+
+	void DisplayStats();
+
+	//void OnClicked(WPARAM wParam, LPARAM lParam);
 };

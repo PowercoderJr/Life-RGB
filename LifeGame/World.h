@@ -21,25 +21,24 @@ public:
 	//int LoadPattern(string);
 	void SetCell(int, int, Cell*);
 	void Update();
-	bool IsPaused();
-	void SetIsPaused(bool isPaused);
+	/*bool IsPaused();
+	void SetIsPaused(bool isPaused);*/
 	int GetRowsCount();
 	int GetColsCount();
+	int GetTotalCellsCount();
+	int GetCellsCountByRace(Cell::Race race);
 	~World();
 private:
 	int rowsCount;
 	int colsCount;
 	vector<vector<Cell*>> cells;
-	vector<vector<Cell*>> cellsBuf;
+	//vector<vector<Cell*>> cellsCopy;
 
-	bool isPaused;
+	//bool isPaused;
 	int generation;
 	int square;
 	int totalCellsCount;
-	int redCellsCount;
-	int greenCellsCount;
-	int blueCellsCount;
-	int neutralCellsCount;
+	int racesCellsCount[4];
 
 	void CloneMatrix(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst);
 	void DeleteMatrix(vector<vector<Cell*>>* matrix);

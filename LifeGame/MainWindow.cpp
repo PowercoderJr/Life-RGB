@@ -2,7 +2,8 @@
 
 MainWindow::MainWindow()
 {
-	;
+	isPaused = true;
+	isClosing = false;
 }
 
 bool MainWindow::Register(const char* name, HINSTANCE hInstance)
@@ -81,6 +82,9 @@ void MainWindow::OnCreate()
 	CreateToolbar();
 	CreateLeftPanel();
 	CreateWorldWindow();
+	InvalidateRect(colorPanel, NULL, FALSE);
+
+	lifeThread = CreateThread(NULL, NULL, LifeThreadFunction, this, CREATE_SUSPENDED, NULL);
 }
 
 void MainWindow::OnSize()
@@ -122,13 +126,21 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 	case ID_DRAW_MODE:
 		OnDrawModeRbClicked(wParam, lParam);
 		break;
+	case ID_WORLD_WINDOW:
+		OnWorldWindowClicked(wParam, lParam);
+		break;
 	}
 }
 
 LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
 {
 	if ((HWND)lParam == colorPanel)
-		return (LRESULT)worldWindow.GetBrushColor();
+	{
+		/*WPARAM kek = (WPARAM)GetDC(colorPanel);
+		WPARAM pek = (WPARAM)GetWindowDC(colorPanel);
+		SetBkColor((HDC)wParam, worldWindow.GetBrushColor());*/
+		return (LRESULT)worldWindow.GetBrush();
+	}
 	return 0;
 }
 
@@ -252,10 +264,10 @@ void MainWindow::CreateLeftPanel()
 			8, 570, 150, 20, handle, NULL, hInstance, NULL);
 	NEUTRAL_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
 			166, 570, 76, 20, handle, NULL, hInstance, NULL);
-	SendMessageA(RED_RACE_PB, PBM_SETPOS, 10, 0);
+	/*SendMessageA(RED_RACE_PB, PBM_SETPOS, 10, 0);
 	SendMessageA(GREEN_RACE_PB, PBM_SETPOS, 20, 0);
 	SendMessageA(BLUE_RACE_PB, PBM_SETPOS, 30, 0);
-	SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, 40, 0);
+	SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, 40, 0);*/
 	SendMessageA(RED_RACE_PB, PBM_SETBARCOLOR, 0, RED_COLOR_RGB);
 	SendMessageA(GREEN_RACE_PB, PBM_SETBARCOLOR, 0, GREEN_COLOR_RGB);
 	SendMessageA(BLUE_RACE_PB, PBM_SETBARCOLOR, 0, BLUE_COLOR_RGB);
@@ -269,7 +281,7 @@ void MainWindow::CreateWorldWindow()
 	worldWindow = WorldWindow();
 	worldWindow.SetWorld(new World(100, 100));
 	worldWindow.Register("WorldWindow", hInstance);
-	worldWindow.Create("Grid", hInstance, handle, 250, 30, 500, 500);
+	worldWindow.Create("Grid", 250, 30, 500, 500, handle, (HMENU)ID_WORLD_WINDOW, hInstance);
 }
 
 void MainWindow::OnClearWorldClicked(WPARAM wParam, LPARAM lParam)
@@ -362,9 +374,18 @@ void MainWindow::OnDensitySbMoved(WPARAM wParam, LPARAM lParam)
 
 void MainWindow::OnPlayPauseClicked(WPARAM wParam, LPARAM lParam)
 {
-	worldWindow.GetWorld()->SetIsPaused(!worldWindow.GetWorld()->IsPaused());
-	SetWindowTextA(playPauseBtn, worldWindow.GetWorld()->IsPaused() ?
-		"Возобновить симуляцию" : "Приостановить симуляцию");
+	if (isPaused)
+	{
+		ResumeThread(lifeThread);
+		isPaused = false;
+		SetWindowTextA(playPauseBtn, "Приостановить симуляцию");
+	}
+	else
+	{
+		SuspendThread(lifeThread);
+		isPaused = true;
+		SetWindowTextA(playPauseBtn, "Возобновить симуляцию");
+	}	
 }
 
 void MainWindow::OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam)
@@ -379,7 +400,10 @@ void MainWindow::OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam)
 	cc.Flags = CC_FULLOPEN | CC_RGBINIT;
 
 	if (ChooseColorA(&cc))
+	{
 		worldWindow.SetBrushColor(cc.rgbResult);
+		InvalidateRect(colorPanel, NULL, FALSE);
+	}
 }
 
 void MainWindow::OnSelectCellColorLbClicked(WPARAM wParam, LPARAM lParam)
@@ -413,25 +437,82 @@ void MainWindow::OnSelectCellColorLbClicked(WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	}
+	InvalidateRect(colorPanel, NULL, FALSE);
 }
 
 void MainWindow::OnDrawModeRbClicked(WPARAM wParam, LPARAM lParam)
 {
 	bool isAreasMode = (HWND)lParam == drawAreasRB;
 	worldWindow.SetIsAreasMode(isAreasMode);
+	worldWindow.SetIsAreaStartSelected(false);
 	SendMessageA(drawDotsRB, BM_SETCHECK, !isAreasMode, 0);
 	SendMessageA(drawAreasRB, BM_SETCHECK, isAreasMode, 0);
 	EnableWindow(densityLabel, isAreasMode);
 	EnableWindow(densitySB, isAreasMode);
 }
 
+void MainWindow::OnWorldWindowClicked(WPARAM wParam, LPARAM lParam)
+{
+	DisplayStats();
+}
+
+void MainWindow::DisplayStats()
+{
+	// TODO: распихать контролы по массивам и работать из цикла
+	char labelTexts[4][32];
+	int total = worldWindow.GetWorld()->GetTotalCellsCount();
+	if (total == 0)
+	{
+		for (int i = 0; i < 4; ++i)
+			sprintf_s(labelTexts[i], "\0");
+		SendMessageA(RED_RACE_PB, PBM_SETPOS, 0, 0);
+		SendMessageA(GREEN_RACE_PB, PBM_SETPOS, 0, 0);
+		SendMessageA(BLUE_RACE_PB, PBM_SETPOS, 0, 0);
+		SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, 0, 0);
+	}
+	else
+	{
+		int progressValues[4];
+		for (int i = 0; i < 4; ++i)
+		{
+			int rc = worldWindow.GetWorld()->GetCellsCountByRace((Cell::Race)i);
+			progressValues[i] = rc * 100 / total;
+			sprintf_s(labelTexts[i], "%5d/%-5d\0", rc, total);
+		}
+		SendMessageA(RED_RACE_PB, PBM_SETPOS, progressValues[RED_RACE_ID], 0);
+		SendMessageA(GREEN_RACE_PB, PBM_SETPOS, progressValues[GREEN_RACE_ID], 0);
+		SendMessageA(BLUE_RACE_PB, PBM_SETPOS, progressValues[BLUE_RACE_ID], 0);
+		SendMessageA(NEUTRAL_RACE_PB, PBM_SETPOS, progressValues[NEUTRAL_RACE_ID], 0);
+	}
+	SetWindowTextA(RED_RACE_LABEL, labelTexts[RED_RACE_ID]);
+	SetWindowTextA(GREEN_RACE_LABEL, labelTexts[GREEN_RACE_ID]);
+	SetWindowTextA(BLUE_RACE_LABEL, labelTexts[BLUE_RACE_ID]);
+	SetWindowTextA(NEUTRAL_RACE_LABEL, labelTexts[NEUTRAL_RACE_ID]);
+}
+
+DWORD MainWindow::LifeThreadFunction(LPVOID param)
+{
+	MainWindow* that = (MainWindow*)param;
+	while (!that->isClosing)
+	{
+		that->worldWindow.GetWorld()->Update();
+		that->DisplayStats();
+		InvalidateRect(that->worldWindow.GetHandle(), NULL, FALSE);
+		Sleep(LIFE_TICK_PERIOD_MS);
+	}
+	return 0;
+}
+
 void MainWindow::OnClose()
 {
+	isClosing = true;
+	ResumeThread(lifeThread);
+	WaitForSingleObject(lifeThread, INFINITE);
+	CloseHandle(lifeThread);
 	DestroyWindow(handle);
 }
 
 void MainWindow::OnDestroy()
 {
-	KillTimer(handle, 1);
 	PostQuitMessage(WM_QUIT);
 }
