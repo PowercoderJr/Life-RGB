@@ -24,8 +24,12 @@ public:
 	void ResetState();
 	int GetRowsCount();
 	int GetColsCount();
+	int GetSquare();
 	int GetTotalCellsCount();
 	int GetCellsCountByRace(Cell::Race race);
+	int GetGeneration();
+	int GetCellsBorn();
+	int GetCellsDied();
 	~World();
 private:
 	int rowsCount;

@@ -92,6 +92,7 @@ void MainWindow::OnCreate()
 	CreateLeftPanel();
 	CreateWorldWindow();
 	InvalidateRect(colorPanel, NULL, FALSE);
+	DisplayStats();
 
 	lifeThread = CreateThread(NULL, NULL, LifeThreadFunction, this, CREATE_SUSPENDED, NULL);
 	lifeMutex = CreateMutexA(NULL, FALSE, "lifeMutex");
@@ -109,6 +110,9 @@ void MainWindow::OnSize()
 	SetWindowPos(worldWindow.GetHandle(), HWND_TOP, LEFT_PANEL_WIDTH,
 			TOOLBAR_HEIGHT, rect.right - LEFT_PANEL_WIDTH,
 			rect.bottom - TOOLBAR_HEIGHT - STATUSBAR_HEIGHT, SWP_DRAWFRAME);
+	SetWindowPos(statusBar, HWND_TOP, 0, rect.bottom - STATUSBAR_HEIGHT,
+			rect.right, rect.bottom, SWP_DRAWFRAME);
+	SendMessageA(toolbar, TB_AUTOSIZE, 0, 0);
 }
 
 void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
@@ -142,9 +146,6 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 	case ID_AUTOSTOP:
 		OnAutostopChbClicked(wParam, lParam);
 		break;
-	/*case ID_SPEED_FACTOR:
-		OnNotify(wParam, lParam);
-		break;*/
 	case ID_SPEED_FACTOR:
 		OnComboBoxNotify(wParam, lParam);
 		break;
@@ -200,9 +201,10 @@ void MainWindow::CreateToolbar()
 	tbButtons[4].idCommand = ID_SAVE_GRID;
 	tbButtons[4].fsState = TBSTATE_ENABLED;
 	tbButtons[4].fsStyle = TBSTYLE_GROUP;
-	hToolbar = CreateToolbarEx(handle, WS_CHILD | WS_VISIBLE | WS_DLGFRAME |
+	toolbar = CreateToolbarEx(handle, WS_CHILD | WS_VISIBLE | WS_DLGFRAME |
 			TBSTYLE_TOOLTIPS, IDR_TOOLBAR, 0, HINST_COMMCTRL, IDB_STD_SMALL_COLOR,
 			tbButtons, 5, 0, 0, 0, 0, sizeof(TBBUTTON));
+	//SendMessageA(toolbar, TB_AUTOSIZE, 0, 0); // Отправляется из OnResize()
 }
 
 void MainWindow::CreateLeftPanel()
@@ -281,6 +283,8 @@ void MainWindow::CreateLeftPanel()
 	}
 
 	statusBar = CreateStatusWindowA(WS_CHILD | WS_VISIBLE, "", handle, ID_STATUS_BAR);
+	int coords[] = { 200, 400, 600, -1 };
+	SendMessageA(statusBar, SB_SETPARTS, 4, (LPARAM)coords);
 }
 
 void MainWindow::CreateWorldWindow()
@@ -544,7 +548,9 @@ void MainWindow::ResetState()
 
 void MainWindow::DisplayStats()
 {
+	char buf[64];
 	int total = worldWindow.GetWorld()->GetTotalCellsCount();
+	int square = worldWindow.GetWorld()->GetSquare();
 	if (total == 0)
 	{
 		for (int i = 0; i < RACES_COUNT; ++i)
@@ -561,11 +567,19 @@ void MainWindow::DisplayStats()
 			int percentage = rc * 100 / total;
 			// TODO: на следующей строке процесс виснет, если закрыть программу во время обновления поля
 			SendMessageA(racesPBs[i], PBM_SETPOS, percentage, 0);
-			char buf[32];
 			sprintf_s(buf, "%5d (%d%%)", rc, percentage);
 			SetWindowTextA(racesLabels[i], buf);
 		}
 	}
+
+	sprintf_s(buf, "Поколение: %d\0", worldWindow.GetWorld()->GetGeneration());
+	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(0), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+	sprintf_s(buf, "Население: %5d/%5d (%d%%)\0", total, square, total * 100 / square);
+	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(1), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+	sprintf_s(buf, "Клеток родилось: %d\0", worldWindow.GetWorld()->GetCellsBorn());
+	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(2), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+	sprintf_s(buf, "Клеток погибло: %d\0", worldWindow.GetWorld()->GetCellsDied());
+	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(3), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
 }
 
 DWORD MainWindow::LifeThreadFunction(LPVOID param)

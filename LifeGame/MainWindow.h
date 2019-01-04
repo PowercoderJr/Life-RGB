@@ -49,7 +49,7 @@ private:
 	HMENU hMenuGridClear;
 	HMENU hMenuGridGenerate;
 
-	HWND hToolbar;
+	HWND toolbar;
 	TBBUTTON tbButtons[5];
 
 	HWND leftPanel;

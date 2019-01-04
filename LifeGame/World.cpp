@@ -12,6 +12,7 @@ World::World(int rowsCount, int colsCount)
 {
 	this->rowsCount = rowsCount;
 	this->colsCount = colsCount;
+	this->square = this->rowsCount * this->colsCount;
 	matrix = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
 	ResetState();
 }
@@ -101,6 +102,11 @@ int World::GetColsCount()
 	return colsCount;
 }
 
+int World::GetSquare()
+{
+	return square;
+}
+
 int World::GetTotalCellsCount()
 {
 	return totalCellsCount;
@@ -109,6 +115,21 @@ int World::GetTotalCellsCount()
 int World::GetCellsCountByRace(Cell::Race race)
 {
 	return racesCellsCount[race];
+}
+
+int World::GetGeneration()
+{
+	return generation;
+}
+
+int World::GetCellsBorn()
+{
+	return cellsBorn;
+}
+
+int World::GetCellsDied()
+{
+	return cellsDied;
 }
 
 int World::GetRowsCount()
