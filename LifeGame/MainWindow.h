@@ -106,8 +106,10 @@ private:
 
 	WorldWindow worldWindow;
 	HANDLE lifeThread;
+	HANDLE lifeMutex;
 	bool isPaused;
 	bool isClosing;
+	bool isAutostopChecked;
 
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
 	static DWORD WINAPI LifeThreadFunction(LPVOID param);
@@ -126,8 +128,12 @@ private:
 	void OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam);
 	void OnSelectCellColorLbClicked(WPARAM wParam, LPARAM lParam);
 	void OnDrawModeRbClicked(WPARAM wParam, LPARAM lParam);
+	void OnAutostopChbClicked(WPARAM wParam, LPARAM lParam);
 	void OnWorldWindowClicked(WPARAM wParam, LPARAM lParam);
 
+	void ClearWorld();
+	void ClearWorld(int rowsCount, int colsCount);
+	void ResetState();
 	void DisplayStats();
 
 	//void OnClicked(WPARAM wParam, LPARAM lParam);

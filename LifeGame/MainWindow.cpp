@@ -1,5 +1,8 @@
 #include "MainWindow.h"
 #include <time.h>
+#include <functional>
+
+using std::function;
 
 const COLORREF colors[RACES_COUNT] = { RED_COLOR_RGB, GREEN_COLOR_RGB, BLUE_COLOR_RGB, NEUTRAL_COLOR_RGB };
 const char colorNames[RACES_COUNT][32] = { "Красный", "Зелёный", "Синий", "Нейтральный" };
@@ -8,6 +11,7 @@ MainWindow::MainWindow()
 {
 	isPaused = true;
 	isClosing = false;
+	isAutostopChecked = false;
 }
 
 bool MainWindow::Register(const char* name, HINSTANCE hInstance)
@@ -89,6 +93,7 @@ void MainWindow::OnCreate()
 	InvalidateRect(colorPanel, NULL, FALSE);
 
 	lifeThread = CreateThread(NULL, NULL, LifeThreadFunction, this, CREATE_SUSPENDED, NULL);
+	lifeMutex = CreateMutexA(NULL, FALSE, "lifeMutex");
 }
 
 void MainWindow::OnSize()
@@ -115,6 +120,9 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 	case ID_CLEAR_GRID:
 		OnClearWorldClicked(wParam, lParam);
 		break;
+	case ID_GENERATE_GRID:
+		OnGenerateWorldClicked(wParam, lParam);
+		break;
 	case ID_SET_GRID_SIZE:
 		OnSetGridSizeClicked(wParam, lParam);
 		break;
@@ -129,6 +137,9 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 		break;
 	case ID_DRAW_MODE:
 		OnDrawModeRbClicked(wParam, lParam);
+		break;
+	case ID_AUTOSTOP:
+		OnAutostopChbClicked(wParam, lParam);
 		break;
 	case ID_WORLD_WINDOW:
 		OnWorldWindowClicked(wParam, lParam);
@@ -229,8 +240,8 @@ void MainWindow::CreateLeftPanel()
 			8, 280, 234, 20, handle, (HMENU)ID_DENSITY, hInstance, NULL);
 	SetScrollRange(densitySB, SB_CTL, 1, 100, TRUE);
 	SetScrollPos(densitySB, SB_CTL, 100, TRUE);
-	EnableWindow(densityLabel, false);
-	EnableWindow(densitySB, false);
+	/*EnableWindow(densityLabel, false);
+	EnableWindow(densitySB, false);*/
 
 	playPauseBtn = CreateWindowExA(0, "BUTTON", "Запустить симуляцию", WS_CHILD | WS_VISIBLE,
 			8, 320, 234, 30, handle, (HMENU)ID_PLAY_PAUSE, hInstance, NULL);
@@ -257,7 +268,7 @@ void MainWindow::CreateLeftPanel()
 		racesPBs[i] = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
 			8, top, 134, 20, handle, NULL, hInstance, NULL);
 		racesLabels[i] = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			150, top, 76, 20, handle, NULL, hInstance, NULL);
+			150, top, 92, 20, handle, NULL, hInstance, NULL);
 		SendMessageA(racesPBs[i], PBM_SETBARCOLOR, 0, colors[i]);
 	}
 	/*RED_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
@@ -287,7 +298,10 @@ void MainWindow::CreateLeftPanel()
 void MainWindow::CreateWorldWindow()
 {
 	worldWindow = WorldWindow();
-	worldWindow.SetWorld(new World(100, 100));
+	worldWindow.SetLifeMutex(lifeMutex);
+	WaitForSingleObject(lifeMutex, INFINITE);
+	ClearWorld(100, 100);
+	ReleaseMutex(lifeMutex);
 	worldWindow.Register("WorldWindow", hInstance);
 	worldWindow.Create("Grid", 250, 30, 500, 500, handle, (HMENU)ID_WORLD_WINDOW, hInstance);
 }
@@ -299,14 +313,35 @@ void MainWindow::OnClearWorldClicked(WPARAM wParam, LPARAM lParam)
 		"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
 	if (dialogResult == IDYES)
 	{
-		int colsCount = worldWindow.GetWorld()->GetColsCount();
-		int rowsCount = worldWindow.GetWorld()->GetRowsCount();
-		worldWindow.SetWorld(new World(rowsCount, colsCount));
+		WaitForSingleObject(lifeMutex, INFINITE);
+		ClearWorld();
+		ResetState();
+		DisplayStats();
+		ReleaseMutex(lifeMutex);
 	}
 }
 
 void MainWindow::OnGenerateWorldClicked(WPARAM wParam, LPARAM lParam)
 {
+	int dialogResult = MessageBoxExA(handle,
+		"Вы действительно хотите сгенерировать поле заново?",
+		"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
+	if (dialogResult == IDYES)
+	{
+		WaitForSingleObject(lifeMutex, INFINITE);
+		ClearWorld();
+		ResetState();
+		function<Cell*()> cellProvider = []()->Cell*
+		{
+			return new Cell(RGB(rand() % 255, rand() % 255, rand() % 255));
+		};
+		worldWindow.ModifyArea(0, 0, worldWindow.GetWorld()->GetRowsCount() - 1,
+				worldWindow.GetWorld()->GetColsCount() - 1,
+				worldWindow.GetAreaDensity(), cellProvider);
+		DisplayStats();
+		InvalidateRect(worldWindow.GetHandle(), NULL, FALSE);
+		ReleaseMutex(lifeMutex);
+	}
 }
 
 void MainWindow::OnOpenWorldClicked(WPARAM wParam, LPARAM lParam)
@@ -347,7 +382,11 @@ void MainWindow::OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam)
 			"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
 		if (dialogResult == IDYES)
 		{
-			worldWindow.SetWorld(new World(rowsCount, colsCount));
+			WaitForSingleObject(lifeMutex, INFINITE);
+			ClearWorld(rowsCount, colsCount);
+			ResetState();
+			DisplayStats();
+			ReleaseMutex(lifeMutex);
 		}
 	}
 }
@@ -380,8 +419,10 @@ void MainWindow::OnDensitySbMoved(WPARAM wParam, LPARAM lParam)
 	worldWindow.SetAreaDensity(pos);
 }
 
+// TODO: если быстро два раза нажать кнопку, процесс виснет
 void MainWindow::OnPlayPauseClicked(WPARAM wParam, LPARAM lParam)
 {
+	WaitForSingleObject(lifeMutex, INFINITE);
 	if (isPaused)
 	{
 		ResumeThread(lifeThread);
@@ -393,7 +434,8 @@ void MainWindow::OnPlayPauseClicked(WPARAM wParam, LPARAM lParam)
 		SuspendThread(lifeThread);
 		isPaused = true;
 		SetWindowTextA(playPauseBtn, "Возобновить симуляцию");
-	}	
+	}
+	ReleaseMutex(lifeMutex);
 }
 
 void MainWindow::OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam)
@@ -455,13 +497,42 @@ void MainWindow::OnDrawModeRbClicked(WPARAM wParam, LPARAM lParam)
 	worldWindow.SetIsAreaStartSelected(false);
 	SendMessageA(drawDotsRB, BM_SETCHECK, !isAreasMode, 0);
 	SendMessageA(drawAreasRB, BM_SETCHECK, isAreasMode, 0);
-	EnableWindow(densityLabel, isAreasMode);
-	EnableWindow(densitySB, isAreasMode);
+	/*EnableWindow(densityLabel, isAreasMode);
+	EnableWindow(densitySB, isAreasMode);*/
+}
+
+void MainWindow::OnAutostopChbClicked(WPARAM wParam, LPARAM lParam)
+{
+	isAutostopChecked = !isAutostopChecked;
+	SendMessageA(autostopChB, BM_SETCHECK, isAutostopChecked, 0);
 }
 
 void MainWindow::OnWorldWindowClicked(WPARAM wParam, LPARAM lParam)
 {
 	DisplayStats();
+}
+
+void MainWindow::ClearWorld()
+{
+	int rowsCount = worldWindow.GetWorld()->GetRowsCount();
+	int colsCount = worldWindow.GetWorld()->GetColsCount();
+	ClearWorld(rowsCount, colsCount);
+}
+
+void MainWindow::ClearWorld(int rowsCount, int colsCount)
+{
+	worldWindow.SetWorld(new World(rowsCount, colsCount));
+}
+
+void MainWindow::ResetState()
+{
+	if (!isPaused)
+	{
+		isPaused = true;
+		SuspendThread(lifeThread);
+	}
+	worldWindow.ResetState();
+	SetWindowTextA(playPauseBtn, "Запустить симуляцию");
 }
 
 void MainWindow::DisplayStats()
@@ -481,6 +552,7 @@ void MainWindow::DisplayStats()
 		{
 			int rc = worldWindow.GetWorld()->GetCellsCountByRace((Cell::Race)i);
 			int percentage = rc * 100 / total;
+			// TODO: на следующей строке процесс виснет, если закрыть программу во время обновления поля
 			SendMessageA(racesPBs[i], PBM_SETPOS, percentage, 0);
 			char buf[32];
 			sprintf_s(buf, "%5d (%d%%)", rc, percentage);
@@ -495,13 +567,19 @@ DWORD MainWindow::LifeThreadFunction(LPVOID param)
 	while (!that->isClosing)
 	{
 		DWORD startMs = GetTickCount();
+		WaitForSingleObject(that->lifeMutex, INFINITE);
 		that->worldWindow.GetWorld()->Update();
 		that->DisplayStats();
+		ReleaseMutex(that->lifeMutex);
 		InvalidateRect(that->worldWindow.GetHandle(), NULL, FALSE);
+		if (that->worldWindow.GetWorld()->GetTotalCellsCount() == 0 &&
+				that->isAutostopChecked)
+		{
+			SendMessageA(that->handle, WM_COMMAND, ID_PLAY_PAUSE, 0);
+		}
 		DWORD elapsedMs = GetTickCount() - startMs;
-		DWORD delayMs = LIFE_TICK_PERIOD_MS - elapsedMs;
-		if (delayMs > 0)
-			Sleep(delayMs);
+		if (elapsedMs < LIFE_TICK_PERIOD_MS)
+			Sleep(LIFE_TICK_PERIOD_MS - elapsedMs);
 	}
 	return 0;
 }
@@ -509,9 +587,11 @@ DWORD MainWindow::LifeThreadFunction(LPVOID param)
 void MainWindow::OnClose()
 {
 	isClosing = true;
-	ResumeThread(lifeThread);
-	WaitForSingleObject(lifeThread, INFINITE);
+	if (isPaused)
+		ResumeThread(lifeThread);
+	WaitForSingleObject(lifeThread, 100/*00*/);
 	CloseHandle(lifeThread);
+	CloseHandle(lifeMutex);
 	DestroyWindow(handle);
 }
 

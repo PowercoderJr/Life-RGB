@@ -12,9 +12,8 @@ World::World(int rowsCount, int colsCount)
 {
 	this->rowsCount = rowsCount;
 	this->colsCount = colsCount;
-	cells = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
-	generation = 0;
-	totalCellsCount = 0;
+	matrix = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
+	ResetState();
 }
 
 void World::DrawGrid(HDC dc, RECT rc)
@@ -38,21 +37,21 @@ void World::DrawCells(HDC dc, RECT rc)
 	RECT cellRect;
 	for (int i = 0; i < rowsCount; i++)
 		for (int j = 0; j < colsCount; j++)
-			if (cells[i][j] != nullptr)
+			if (matrix[i][j] != nullptr)
 			{
 				// TODO: закрашивать клетки внутри границ или поверх?
 				cellRect.top = i * (rc.bottom - rc.top) / rowsCount;
 				cellRect.bottom = (i + 1) * (rc.bottom - rc.top) / rowsCount + 1;
 				cellRect.left = j * (rc.right - rc.left) / colsCount;
 				cellRect.right = (j + 1) * (rc.right - rc.left) / colsCount + 1;
-				FillRect(dc, &cellRect, cells[i][j]->GetBrush());
+				FillRect(dc, &cellRect, matrix[i][j]->GetBrush());
 			}
 }
 
 void World::Update()
 {
 	vector<vector<Cell*>> cellsCopy;
-	CloneMatrix(cells, &cellsCopy);
+	CloneMatrix(matrix, &cellsCopy);
 	for (int i = 0; i < rowsCount; i++)
 	{
 		for (int j = 0; j < colsCount; j++)
@@ -87,6 +86,16 @@ void World::Update()
 	++generation;
 }
 
+void World::ResetState()
+{
+	generation = 0;
+	totalCellsCount = 0;
+	for (int i = 0; i < RACES_COUNT; ++i)
+		racesCellsCount[i] = 0;
+	cellsBorn = 0;
+	cellsDied = 0;
+}
+
 int World::GetColsCount()
 {
 	return colsCount;
@@ -109,7 +118,7 @@ int World::GetRowsCount()
 
 World::~World()
 {
-	DeleteMatrix(&cells);
+	DeleteMatrix(&matrix);
 }
 
 void World::CloneMatrix(const vector<vector<Cell*>> src, vector<vector<Cell*>>* dst)
@@ -138,24 +147,31 @@ void World::DeleteMatrix(vector<vector<Cell*>>* matrix)
 
 void World::SetCell(int i, int j, Cell* cell)
 {
-	if (cells[i][j] == nullptr)
+	if (matrix[i][j] == nullptr)
 	{
 		if (cell != nullptr)
 		{
 			++totalCellsCount;
 			++racesCellsCount[cell->GetRace()];
+			++cellsBorn;
 		}
 	}
 	else
 	{
-		--racesCellsCount[cells[i][j]->GetRace()];
-		delete cells[i][j];
+		--racesCellsCount[matrix[i][j]->GetRace()];
+		++cellsDied;
+		delete matrix[i][j];
 		if (cell != nullptr)
+		{
 			++racesCellsCount[cell->GetRace()];
+			++cellsBorn;
+		}
 		else
+		{
 			--totalCellsCount;
+		}
 	}
-	cells[i][j] = cell;
+	matrix[i][j] = cell;
 }
 
 void World::ReadPosition(ifstream& fin, int& x, int& y)
@@ -196,12 +212,12 @@ void World::ReadPosition(ifstream& fin, int& x, int& y)
 			switch (c)
 			{
 			case '*':
-				cells[i++][j] = 1;
+				matrix[i++][j] = 1;
 				totalCellsCount += 1;
 				i = Cycled(i, rowsCount);
 				break;
 			case '.':
-				cells[i++][j] = 0;
+				matrix[i++][j] = 0;
 				i = Cycled(i, rowsCount);
 				break;
 			case '\n':

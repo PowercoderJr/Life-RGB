@@ -1,10 +1,10 @@
 #include "WorldWindow.h"
 #include <stdlib.h>
 
+using std::function;
+
 WorldWindow::WorldWindow()
 {	
-	generation = 0;
-	cells = NULL;
 	world = nullptr;
 	isAreasMode = false;
 	areaStartI = 0;
@@ -46,6 +46,23 @@ void WorldWindow::Show()
 	UpdateWindow(handle);
 }
 
+void WorldWindow::ModifyArea(int i0, int j0, int i1, int j1, int density, function<Cell*()> cellProvider)
+{
+	for (int iRun = i0; iRun <= i1; ++iRun)
+		for (int jRun = j0; jRun <= j1; ++jRun)
+			if (rand() % 100 < density)
+				world->SetCell(iRun, jRun, cellProvider());
+}
+
+void WorldWindow::ResetState()
+{
+	world->ResetState();
+	areaStartI = 0;
+	areaStartJ = 0;
+	isAreaStartSelected = false;
+	InvalidateRect(handle, NULL, FALSE);
+}
+
 void WorldWindow::SetBrushColor(COLORREF brushColor)
 {
 	this->brushColor = brushColor;
@@ -78,9 +95,19 @@ void WorldWindow::SetIsAreaStartSelected(bool isAreaStartSelected)
 	this->isAreaStartSelected = isAreaStartSelected;
 }
 
+int WorldWindow::GetAreaDensity()
+{
+	return areaDensity;
+}
+
 void WorldWindow::SetAreaDensity(int areaDensity)
 {
 	this->areaDensity = areaDensity;
+}
+
+void WorldWindow::SetLifeMutex(HANDLE lifeMutex)
+{
+	this->lifeMutex = lifeMutex;
 }
 
 HWND WorldWindow::GetHandle()
@@ -211,6 +238,7 @@ void WorldWindow::OnPaint()
 
 void WorldWindow::OnMouseButtonDown(UINT msg)
 {
+	WaitForSingleObject(lifeMutex, INFINITE);
 	bool isLMB = msg == WM_LBUTTONDOWN;
 	int i, j;
 	CoordsToIndices(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam), &i, &j);
@@ -222,10 +250,15 @@ void WorldWindow::OnMouseButtonDown(UINT msg)
 			int j0 = min(areaStartJ, j);
 			int i1 = max(areaStartI, i);
 			int j1 = max(areaStartJ, j);
-			for (int iRun = i0; iRun <= i1; ++iRun)
-				for (int jRun = j0; jRun <= j1; ++jRun)
-					if (!isLMB || rand() % 100 < areaDensity)
-						world->SetCell(iRun, jRun, isLMB ? new Cell(brushColor) : nullptr);
+
+			function<Cell*()> cellProvider = [this, isLMB]()->Cell*
+			{
+				if (isLMB)
+					return new Cell(brushColor);
+				else
+					return nullptr;
+			};
+			ModifyArea(i0, j0, i1, j1, isLMB ? areaDensity : 100, cellProvider);
 		}
 		else
 		{
@@ -240,6 +273,7 @@ void WorldWindow::OnMouseButtonDown(UINT msg)
 	}
 	InvalidateRect(handle, NULL, FALSE);
 	SendMessageA(GetParent(handle), WM_COMMAND, (WPARAM)GetMenu(handle), lparam);
+	ReleaseMutex(lifeMutex);
 }
 
 void WorldWindow::OnClose()

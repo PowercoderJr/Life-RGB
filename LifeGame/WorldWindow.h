@@ -1,5 +1,6 @@
 #pragma once
 #include "World.h"
+#include <functional>
 
 class WorldWindow {
 public:
@@ -7,13 +8,17 @@ public:
 	static bool Register(const char*, HINSTANCE);
 	bool Create(const char*, int, int, int, int, HWND, HMENU, HINSTANCE);
 	void Show();
+	void ModifyArea(int, int, int, int, int, std::function<Cell*()> cellProvider);
+	void ResetState();
 	void SetBrushColor(COLORREF);
 	COLORREF GetBrushColor();
 	HBRUSH GetBrush();
 	bool IsAreasMode();
 	void SetIsAreasMode(bool isAreasMode);
 	void SetIsAreaStartSelected(bool isAreaStartSelected);
+	int GetAreaDensity();
 	void SetAreaDensity(int areaDensity);
+	void SetLifeMutex(HANDLE lifeMutex);
 	HWND GetHandle();
 	World* GetWorld();
 	void SetWorld(World* world);
@@ -27,9 +32,8 @@ protected:
 	void OnMouseButtonDown(UINT msg);
 private:
 	HWND handle;
-	HWND generation;
-	HWND cells;
 	World* world;
+	HANDLE lifeMutex;
 	COLORREF brushColor;
 	HBRUSH brush;
 	LPARAM lparam;
