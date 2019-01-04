@@ -12,6 +12,7 @@ MainWindow::MainWindow()
 	isPaused = true;
 	isClosing = false;
 	isAutostopChecked = false;
+	speedFactor = 1;
 }
 
 bool MainWindow::Register(const char* name, HINSTANCE hInstance)
@@ -141,6 +142,12 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 	case ID_AUTOSTOP:
 		OnAutostopChbClicked(wParam, lParam);
 		break;
+	/*case ID_SPEED_FACTOR:
+		OnNotify(wParam, lParam);
+		break;*/
+	case ID_SPEED_FACTOR:
+		OnComboBoxNotify(wParam, lParam);
+		break;
 	case ID_WORLD_WINDOW:
 		OnWorldWindowClicked(wParam, lParam);
 		break;
@@ -151,9 +158,6 @@ LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
 {
 	if ((HWND)lParam == colorPanel)
 	{
-		/*WPARAM kek = (WPARAM)GetDC(colorPanel);
-		WPARAM pek = (WPARAM)GetWindowDC(colorPanel);
-		SetBkColor((HDC)wParam, worldWindow.GetBrushColor());*/
 		return (LRESULT)worldWindow.GetBrush();
 	}
 	return 0;
@@ -249,15 +253,19 @@ void MainWindow::CreateLeftPanel()
 			8, 360, 234, 20, handle, (HMENU)ID_AUTOSTOP, hInstance, NULL);
 	label = CreateWindowExA(0, "STATIC", "Скорость симуляции:", WS_CHILD | WS_VISIBLE,
 			8, 394, 150, 20, handle, NULL, hInstance, NULL);
-	speedCB = CreateWindowExA(0, "COMBOBOX", "", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE,
-			166, 390, 76, 200, handle, (HMENU)ID_SPEED, hInstance, NULL);
-	SendMessageA(speedCB, CB_ADDSTRING, ID_SPEED_x05, (LPARAM)"x0.5");
-	SendMessageA(speedCB, CB_ADDSTRING, ID_SPEED_x1, (LPARAM)"x1");
-	SendMessageA(speedCB, CB_ADDSTRING, ID_SPEED_x2, (LPARAM)"x2");
-	SendMessageA(speedCB, CB_ADDSTRING, ID_SPEED_x4, (LPARAM)"x4");
-	SendMessageA(speedCB, CB_ADDSTRING, ID_SPEED_x8, (LPARAM)"x8");
-	SendMessageA(speedCB, CB_ADDSTRING, ID_SPEED_x16, (LPARAM)"x16");
-	SendMessageA(speedCB, CB_SETCURSEL, 1, 0);
+	speedFactorCB = CreateWindowExA(0, "COMBOBOX", "", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE | LBS_NOTIFY,
+			166, 390, 76, 200, handle, (HMENU)ID_SPEED_FACTOR, hInstance, NULL);
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x0.25");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x0.5");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x1");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x2");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x4");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x8");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x16");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x32");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x64");
+	SendMessageA(speedFactorCB, CB_ADDSTRING, NULL, (LPARAM)"x128");
+	SendMessageA(speedFactorCB, CB_SETCURSEL, 2, 0);
 
 	label = CreateWindowExA(0, "STATIC", "Статистика:", WS_CHILD | WS_VISIBLE,
 			8, 450, 150, 20, handle, NULL, hInstance, NULL);
@@ -271,26 +279,6 @@ void MainWindow::CreateLeftPanel()
 			150, top, 92, 20, handle, NULL, hInstance, NULL);
 		SendMessageA(racesPBs[i], PBM_SETBARCOLOR, 0, colors[i]);
 	}
-	/*RED_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 480, 134, 20, handle, NULL, hInstance, NULL);
-	RED_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			150, 480, 76, 20, handle, NULL, hInstance, NULL);
-	GREEN_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 510, 134, 20, handle, NULL, hInstance, NULL);
-	GREEN_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			150, 510, 76, 20, handle, NULL, hInstance, NULL);
-	BLUE_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 540, 134, 20, handle, NULL, hInstance, NULL);
-	BLUE_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			150, 540, 76, 20, handle, NULL, hInstance, NULL);
-	NEUTRAL_RACE_PB = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
-			8, 570, 134, 20, handle, NULL, hInstance, NULL);
-	NEUTRAL_RACE_LABEL = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-			150, 570, 76, 20, handle, NULL, hInstance, NULL);
-	SendMessageA(RED_RACE_PB, PBM_SETBARCOLOR, 0, RED_COLOR_RGB);
-	SendMessageA(GREEN_RACE_PB, PBM_SETBARCOLOR, 0, GREEN_COLOR_RGB);
-	SendMessageA(BLUE_RACE_PB, PBM_SETBARCOLOR, 0, BLUE_COLOR_RGB);
-	SendMessageA(NEUTRAL_RACE_PB, PBM_SETBARCOLOR, 0, NEUTRAL_COLOR_RGB);*/
 
 	statusBar = CreateStatusWindowA(WS_CHILD | WS_VISIBLE, "", handle, ID_STATUS_BAR);
 }
@@ -507,6 +495,25 @@ void MainWindow::OnAutostopChbClicked(WPARAM wParam, LPARAM lParam)
 	SendMessageA(autostopChB, BM_SETCHECK, isAutostopChecked, 0);
 }
 
+void MainWindow::OnComboBoxNotify(WPARAM wParam, LPARAM lParam)
+{
+	switch (LOWORD(wParam))
+	{
+	case ID_SPEED_FACTOR:
+		if (HIWORD(wParam) == CBN_SELCHANGE)
+		{
+			int index = SendMessageA(speedFactorCB, CB_GETCURSEL, 0, 0);
+			if (index != CB_ERR)
+			{
+				char buf[32];
+				SendMessageA(speedFactorCB, CB_GETLBTEXT, index, (LPARAM)&buf);
+				speedFactor = std::atof(buf + 1);
+			}
+		}
+		break;
+	}
+}
+
 void MainWindow::OnWorldWindowClicked(WPARAM wParam, LPARAM lParam)
 {
 	DisplayStats();
@@ -578,8 +585,9 @@ DWORD MainWindow::LifeThreadFunction(LPVOID param)
 			SendMessageA(that->handle, WM_COMMAND, ID_PLAY_PAUSE, 0);
 		}
 		DWORD elapsedMs = GetTickCount() - startMs;
-		if (elapsedMs < LIFE_TICK_PERIOD_MS)
-			Sleep(LIFE_TICK_PERIOD_MS - elapsedMs);
+		DWORD delay = (DWORD)(LIFE_TICK_PERIOD_MS / that->speedFactor);
+		if (elapsedMs < delay)
+			Sleep(delay - elapsedMs);
 	}
 	return 0;
 }
