@@ -2,6 +2,8 @@
 #include <vector>
 
 using std::vector;
+//using std::ifstream;
+//using std::ofstream;
 
 inline int Cycled(int input, int base)
 {
@@ -166,6 +168,111 @@ void World::DeleteMatrix(vector<vector<Cell*>>* matrix)
 	(*matrix).shrink_to_fit();
 }
 
+bool World::ReadFromFile(char * filepath)
+{
+	bool result = false;
+	char filepathBufbuf[32];
+	HANDLE fin = CreateFile(filepath, GENERIC_READ, NULL, NULL, OPEN_EXISTING, NULL, NULL);
+	if (fin == INVALID_HANDLE_VALUE)
+		return false;
+
+	try
+	{
+		char buf[32];
+		DWORD x;
+		ReadFile(fin, buf, 3, &x, NULL);
+		if (x == 3)
+		{
+			rowsCount = std::atoi(buf);
+			ReadFile(fin, buf, 3, &x, NULL);
+		}
+		if (x == 3)
+		{
+			colsCount = std::atoi(buf);
+			square = rowsCount * colsCount;
+			DeleteMatrix(&matrix);
+			matrix = vector<vector<Cell*>>(rowsCount, vector<Cell*>(colsCount, nullptr));
+			for (int i = 0; i < rowsCount; ++i)
+			{
+				for (int j = 0; j < colsCount; ++j)
+				{
+					ReadFile(fin, buf, 8, &x, NULL);
+					int color = std::atoi(buf);
+					if (color >= 0)
+						matrix[i][j] = new Cell(color);
+				}
+			}
+
+			ReadFile(fin, buf, 8, &x, NULL);
+			generation = std::atoi(buf);
+			ReadFile(fin, buf, 8, &x, NULL);
+			totalCellsCount = std::atoi(buf);
+			for (int i = 0; i < RACES_COUNT; ++i)
+			{
+				ReadFile(fin, buf, 8, &x, NULL);
+				racesCellsCount[i] = std::atoi(buf);
+			}
+			ReadFile(fin, buf, 8, &x, NULL);
+			cellsBorn = std::atoi(buf);
+			ReadFile(fin, buf, 8, &x, NULL);
+			cellsDied = std::atoi(buf);
+
+			result = true;
+		}
+	}
+	catch (...)
+	{
+		;
+	}
+
+	CloseHandle(fin);
+	return result;
+}
+
+bool World::WriteToFile(char * filepath)
+{
+	bool result = false;
+	HANDLE fout = CreateFileA(filepath, GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
+	if (fout == INVALID_HANDLE_VALUE)
+		return false;
+
+	try
+	{
+		char buf[32];
+		sprintf_s(buf, "%03d%03d", rowsCount, colsCount);
+		DWORD x;
+		WriteFile(fout, buf, strlen(buf), &x, NULL);
+		for (int i = 0; i < rowsCount; ++i)
+		{
+			for (int j = 0; j < colsCount; ++j)
+			{
+				sprintf_s(buf, "%08d", matrix[i][j] == nullptr ? -1 : matrix[i][j]->GetBrushColor());
+				WriteFile(fout, buf, strlen(buf), &x, NULL);
+			}
+		}
+		sprintf_s(buf, "%08d", generation);
+		WriteFile(fout, buf, strlen(buf), &x, NULL);
+		sprintf_s(buf, "%08d", totalCellsCount);
+		WriteFile(fout, buf, strlen(buf), &x, NULL);
+		for (int i = 0; i < RACES_COUNT; ++i)
+		{
+			sprintf_s(buf, "%08d", racesCellsCount[i]);
+			WriteFile(fout, buf, strlen(buf), &x, NULL);
+		}
+		sprintf_s(buf, "%08d", cellsBorn);
+		WriteFile(fout, buf, strlen(buf), &x, NULL);
+		sprintf_s(buf, "%08d", cellsDied);
+		WriteFile(fout, buf, strlen(buf), &x, NULL);
+		result = true;
+	}
+	catch (...)
+	{
+		;
+	}
+	CloseHandle(fout);
+	return result;
+}
+
 void World::SetCell(int i, int j, Cell* cell)
 {
 	if (matrix[i][j] == nullptr)
@@ -194,69 +301,3 @@ void World::SetCell(int i, int j, Cell* cell)
 	}
 	matrix[i][j] = cell;
 }
-
-void World::ReadPosition(ifstream& fin, int& x, int& y)
-{
-	string str;
-	fin >> str;
-	x = atoi(str.c_str());
-	fin >> str;
-	y = atoi(str.c_str());
-	x += colsCount / 2;
-	y += rowsCount / 2;
-	x = Cycled(x, colsCount);
-	y = Cycled(y, rowsCount);
-}
-
-/*int World::LoadPattern(string path)
-{
-	ifstream fin;
-	fin.open(path, ifstream::in);
-	if (fin.fail())
-	{
-		return 1;
-	}
-	string str;
-	int x, y, i, j;
-	char c;
-	while (str != "#P")
-		fin >> str;
-	ReadPosition(fin, x, y);
-	i = x, j = y;
-	c = fin.get();
-	while (c != EOF && fin.good())
-	{
-		while (c != EOF && fin.good() && c != '#')
-		{
-			if (!(c = fin.get()) || c == EOF)
-				break;
-			switch (c)
-			{
-			case '*':
-				matrix[i++][j] = 1;
-				totalCellsCount += 1;
-				i = Cycled(i, rowsCount);
-				break;
-			case '.':
-				matrix[i++][j] = 0;
-				i = Cycled(i, rowsCount);
-				break;
-			case '\n':
-				i = x;
-				j = Cycled(++j, colsCount);
-				break;
-			default:
-				break;
-			}
-		}
-		if (c == '#')
-		{
-			c = fin.get();
-			ReadPosition(fin, x, y);
-			i = x, j = y;
-			c = fin.get();
-		}
-	}
-	fin.close();
-	return 0;
-}*/

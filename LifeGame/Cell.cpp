@@ -28,6 +28,11 @@ Cell::Race Cell::GetRace()
 	return Race::NEUTRAL;
 }
 
+COLORREF Cell::GetBrushColor()
+{
+	return brushColor;
+}
+
 bool Cell::Equals(Cell* cell)
 {
 	return cell != nullptr && this->brushColor == cell->brushColor;

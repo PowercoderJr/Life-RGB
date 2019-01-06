@@ -26,7 +26,6 @@ public:
 protected:
 	void OnDestroy();
 	void OnPaint();
-	//void OnTimer();
 	void OnCreate();
 	void OnClose();
 	void OnMouseButtonDown(UINT msg);

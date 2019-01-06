@@ -21,6 +21,7 @@ public:
 	Cell(Cell* cell) : Cell(cell->brushColor) {}
 	HBRUSH GetBrush();
 	Race GetRace();
+	COLORREF GetBrushColor();
 	bool Equals(Cell * cell);
 	~Cell();
 private:

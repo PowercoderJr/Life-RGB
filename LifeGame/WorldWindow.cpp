@@ -1,5 +1,6 @@
 #include "WorldWindow.h"
 #include <stdlib.h>
+#include <windowsx.h>
 
 using std::function;
 
@@ -214,27 +215,6 @@ void WorldWindow::OnPaint()
 	DeleteDC(cDC);
 	EndPaint(handle, &ps);
 }
-
-/*void WorldWindow::OnTimer()
-{
-	/*WorldWindow* ptr = this;
-	RECT rect;
-	GetClientRect(handle, &rect);*
-	if (!world->IsPaused())
-		world->Update();
-
-	/*wchar_t str[200];
-	_itow_s(world.generation, str, 10);
-	std::wstring s1 = std::wstring(L"Generation: ");
-	std::wstring s2 = std::wstring(str);
-	SendMessageA(generation, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));
-	_itow_s(world.totalCellsCount, str, 10);
-	s1 = std::wstring(L"Active cells: ");
-	s2 = std::wstring(str);
-	SendMessageA(cells, WM_SETTEXT, 0, reinterpret_cast<LPARAM>((s1 + s2).c_str()));*
-
-	InvalidateRect(handle, NULL, FALSE);
-}*/
 
 void WorldWindow::OnMouseButtonDown(UINT msg)
 {

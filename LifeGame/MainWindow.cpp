@@ -1,6 +1,8 @@
 #include "MainWindow.h"
 #include <time.h>
 #include <functional>
+#include <fileapi.h>
+#include <shobjidl.h> 
 
 using std::function;
 
@@ -23,7 +25,6 @@ bool MainWindow::Register(const char* name, HINSTANCE hInstance)
 	tag.lpfnWndProc = windowProc;
 	tag.cbClsExtra = 0;
 	tag.cbWndExtra = 0;
-	//tag.hIcon = static_cast<HICON>(LoadImageA(hInstance, MAKEINTRESOURCEA(IDI_ICON2), 1, 32, 32, NULL));
 	tag.hCursor = LoadCursorA(NULL, IDC_ARROW);
 	tag.hbrBackground = reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
 	tag.lpszClassName = "MainWindow";
@@ -91,10 +92,11 @@ void MainWindow::OnCreate()
 	CreateToolbar();
 	CreateLeftPanel();
 	CreateWorldWindow();
+	SetTooltips();
 	InvalidateRect(colorPanel, NULL, FALSE);
 	DisplayStats();
 
-	lifeThread = CreateThread(NULL, NULL, LifeThreadFunction, this, CREATE_SUSPENDED, NULL);
+	lifeThread = CreateThread(NULL, NULL, LifeThreadFunction, this, NULL, NULL);
 	lifeMutex = CreateMutexA(NULL, FALSE, "lifeMutex");
 }
 
@@ -120,39 +122,42 @@ void MainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 	/*char values[1024];
 	sprintf_s(values, "WPARAM: %ul, LPARAM: %ul\LO_WPARAM: %ul, LO_LPARAM: %ul\nHI_WPARAM: %ul, HI_LPARAM: %ul", wParam, lParam, LOWORD(wParam), LOWORD(lParam), HIWORD(wParam), HIWORD(lParam));
 	MessageBoxExA(0, values, "Test", 0, 0);*/
-	switch (LOWORD(wParam))
-	{
-	case ID_CLEAR_GRID:
+	if ((HMENU)wParam == hMenuWorldClear || LOWORD(wParam) == ID_CLEAR_WORLD)
 		OnClearWorldClicked(wParam, lParam);
-		break;
-	case ID_GENERATE_GRID:
+	else if ((HMENU)wParam == hMenuWorldGenerate || LOWORD(wParam) == ID_GENERATE_WORLD)
 		OnGenerateWorldClicked(wParam, lParam);
-		break;
-	case ID_SET_GRID_SIZE:
-		OnSetGridSizeClicked(wParam, lParam);
-		break;
-	case ID_PLAY_PAUSE:
-		OnPlayPauseClicked(wParam, lParam);
-		break;
-	case ID_SELECT_CELL_COLOR:
-		OnSelectCellColorClicked(wParam, lParam);
-		break;
-	case ID_SELECT_CELL_COLOR_LISTBOX:
-		OnSelectCellColorLbClicked(wParam, lParam);
-		break;
-	case ID_DRAW_MODE:
-		OnDrawModeRbClicked(wParam, lParam);
-		break;
-	case ID_AUTOSTOP:
-		OnAutostopChbClicked(wParam, lParam);
-		break;
-	case ID_SPEED_FACTOR:
-		OnComboBoxNotify(wParam, lParam);
-		break;
-	case ID_WORLD_WINDOW:
-		OnWorldWindowClicked(wParam, lParam);
-		break;
-	}
+	else if ((HMENU)wParam == hMenuWorldLoad || LOWORD(wParam) == ID_OPEN_WORLD)
+		OnOpenWorldClicked(wParam, lParam);
+	else if ((HMENU)wParam == hMenuWorldSave || LOWORD(wParam) == ID_SAVE_WORLD)
+		OnSaveWorldClicked(wParam, lParam);
+	else
+		switch (LOWORD(wParam))
+		{
+		case ID_SET_WORLD_SIZE:
+			OnSetWorldSizeClicked(wParam, lParam);
+			break;
+		case ID_PLAY_PAUSE:
+			OnPlayPauseClicked(wParam, lParam);
+			break;
+		case ID_SELECT_CELL_COLOR:
+			OnSelectCellColorClicked(wParam, lParam);
+			break;
+		case ID_SELECT_CELL_COLOR_LISTBOX:
+			OnSelectCellColorLbClicked(wParam, lParam);
+			break;
+		case ID_DRAW_MODE:
+			OnDrawModeRbClicked(wParam, lParam);
+			break;
+		case ID_AUTOSTOP:
+			OnAutostopChbClicked(wParam, lParam);
+			break;
+		case ID_SPEED_FACTOR:
+			OnComboBoxNotify(wParam, lParam);
+			break;
+		case ID_WORLD_WINDOW:
+			OnWorldWindowClicked(wParam, lParam);
+			break;
+		}
 }
 
 LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
@@ -166,18 +171,20 @@ LRESULT MainWindow::OnCtlColorStatic(WPARAM wParam, LPARAM lParam)
 
 void MainWindow::CreateMainMenu()
 {
-	hMenuGrid = CreateMenu();
-	AppendMenuA(hMenu, MF_POPUP, (UINT_PTR)hMenuGrid, "Поле");
+	hMenuWorld = CreateMenu();
+	AppendMenuA(hMenu, MF_POPUP, (UINT_PTR)hMenuWorld, "Мир");
 
-	hMenuGridSave = CreateMenu();
-	hMenuGridLoad = CreateMenu();
-	hMenuGridClear = CreateMenu();
-	hMenuGridGenerate = CreateMenu();
-	AppendMenuA(hMenuGrid, MF_STRING, (UINT_PTR)hMenuGridClear, "Очистить");
-	AppendMenuA(hMenuGrid, MF_STRING, (UINT_PTR)hMenuGridGenerate, "Генерировать");
-	AppendMenuA(hMenuGrid, MF_SEPARATOR, NULL, NULL);
-	AppendMenuA(hMenuGrid, MF_STRING, (UINT_PTR)hMenuGridSave, "Сохранить...");
-	AppendMenuA(hMenuGrid, MF_STRING, (UINT_PTR)hMenuGridLoad, "Загрузить...");
+	hMenuWorldSave = CreateMenu();
+	hMenuWorldLoad = CreateMenu();
+	hMenuWorldClear = CreateMenu();
+	hMenuWorldGenerate = CreateMenu();
+	AppendMenuA(hMenuWorld, MF_STRING, (UINT_PTR)hMenuWorldClear, "Очистить");
+	AppendMenuA(hMenuWorldClear, MF_STRING, ID_CLEAR_WORLD, "Очистить");
+	AppendMenuA(hMenuWorld, MF_STRING, (UINT_PTR)hMenuWorldGenerate, "Генерировать");
+	AppendMenuA(hMenuWorldGenerate, MF_STRING, ID_GENERATE_WORLD, "Генерировать");
+	AppendMenuA(hMenuWorld, MF_SEPARATOR, NULL, NULL);
+	AppendMenuA(hMenuWorld, MF_STRING, (UINT_PTR)hMenuWorldSave, "Сохранить...");
+	AppendMenuA(hMenuWorld, MF_STRING, (UINT_PTR)hMenuWorldLoad, "Загрузить...");
 
 	DrawMenuBar(handle);
 }
@@ -185,20 +192,20 @@ void MainWindow::CreateMainMenu()
 void MainWindow::CreateToolbar()
 {
 	tbButtons[0].iBitmap = STD_FILENEW;
-	tbButtons[0].idCommand = ID_CLEAR_GRID;
+	tbButtons[0].idCommand = ID_CLEAR_WORLD;
 	tbButtons[0].fsState = TBSTATE_ENABLED;
 	tbButtons[0].fsStyle = TBSTYLE_GROUP;
 	tbButtons[1].iBitmap = STD_PROPERTIES;
-	tbButtons[1].idCommand = ID_GENERATE_GRID;
+	tbButtons[1].idCommand = ID_GENERATE_WORLD;
 	tbButtons[1].fsState = TBSTATE_ENABLED;
 	tbButtons[1].fsStyle = TBSTYLE_GROUP;
 	tbButtons[2].fsStyle = TBSTYLE_SEP;
 	tbButtons[3].iBitmap = STD_FILEOPEN;
-	tbButtons[3].idCommand = ID_OPEN_GRID;
+	tbButtons[3].idCommand = ID_OPEN_WORLD;
 	tbButtons[3].fsState = TBSTATE_ENABLED;
 	tbButtons[3].fsStyle = TBSTYLE_GROUP;
 	tbButtons[4].iBitmap = STD_FILESAVE;
-	tbButtons[4].idCommand = ID_SAVE_GRID;
+	tbButtons[4].idCommand = ID_SAVE_WORLD;
 	tbButtons[4].fsState = TBSTATE_ENABLED;
 	tbButtons[4].fsStyle = TBSTYLE_GROUP;
 	toolbar = CreateToolbarEx(handle, WS_CHILD | WS_VISIBLE | WS_DLGFRAME |
@@ -221,8 +228,8 @@ void MainWindow::CreateLeftPanel()
 			136, 40, 10, 20, handle, NULL, hInstance, NULL);
 	colsCountTB = CreateWindowExA(0, "EDIT", "100", WS_CHILD | WS_VISIBLE,
 			146, 40, 30, 20, handle, NULL, hInstance, NULL);
-	setGridSizeBtn = CreateWindowExA(0, "BUTTON", "OK", WS_CHILD | WS_VISIBLE,
-			184, 40, 58, 20, handle, (HMENU)ID_SET_GRID_SIZE, hInstance, NULL);
+	setWorldSizeBtn = CreateWindowExA(0, "BUTTON", "OK", WS_CHILD | WS_VISIBLE,
+			184, 40, 58, 20, handle, (HMENU)ID_SET_WORLD_SIZE, hInstance, NULL);
 	label = CreateWindowExA(0, "STATIC", "Цвет клеток:", WS_CHILD | WS_VISIBLE,
 			8, 70, 100, 20, handle, NULL, hInstance, NULL);
 	colorPanel = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
@@ -295,7 +302,130 @@ void MainWindow::CreateWorldWindow()
 	ClearWorld(100, 100);
 	ReleaseMutex(lifeMutex);
 	worldWindow.Register("WorldWindow", hInstance);
-	worldWindow.Create("Grid", 250, 30, 500, 500, handle, (HMENU)ID_WORLD_WINDOW, hInstance);
+	worldWindow.Create("World", 250, 30, 500, 500, handle, (HMENU)ID_WORLD_WINDOW, hInstance);
+}
+
+void MainWindow::SetTooltips()
+{
+	SetTooltip(rowsCountTB, (char*)"Количество строк");
+	SetTooltip(colsCountTB, (char*)"Количество столбцов");
+	SetTooltip(drawDotsRB, (char*)"Один клик - одна клетка");
+	SetTooltip(drawAreasRB, (char*)"Укажите противоположные углы прямоугольника");
+	SetTooltip(autostopChB, (char*)"Приостановить симуляцию, если не останется ни одной живой клетки");
+	SetTooltip(racesPBs[0], (char*)"Доля живущих красных клеток");
+	SetTooltip(racesPBs[1], (char*)"Доля живущих зелёных клеток");
+	SetTooltip(racesPBs[2], (char*)"Доля живущих синих клеток");
+	SetTooltip(racesPBs[3], (char*)"Доля живущих нейтральных клеток");
+}
+
+void MainWindow::SetTooltip(HWND hwnd, char* tooltip)
+{
+	HWND hTooltip = CreateWindowExA(WS_EX_TOPMOST, TOOLTIPS_CLASS, "TooltipIM",
+		WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		handle, NULL, hInstance, NULL);
+
+
+	TOOLINFO ti;
+	memset(&ti, 0, sizeof TOOLINFO);
+	ti.cbSize = sizeof TOOLINFO;
+	ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+	ti.uId = (UINT)hwnd;
+	ti.lpszText = tooltip;
+	ti.hinst = hInstance;
+	SendMessageA(hTooltip, TTM_ADDTOOL, 0, (LPARAM)(LPTOOLINFO)&ti);
+}
+
+void MainWindow::ShowOpenFileDialog(char* filepath)
+{
+	char pathBuf[1024];
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+		COINIT_DISABLE_OLE1DDE);
+	if (SUCCEEDED(hr))
+	{
+		IFileOpenDialog *pFileOpen;
+
+		// Create the FileOpenDialog object.
+		hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+			IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+		if (SUCCEEDED(hr))
+		{
+			// Show the Open dialog box.
+			hr = pFileOpen->Show(NULL);
+
+			// Get the file name from the dialog box.
+			if (SUCCEEDED(hr))
+			{
+				IShellItem *pItem;
+				hr = pFileOpen->GetResult(&pItem);
+				if (SUCCEEDED(hr))
+				{
+					PWSTR pszFilePath;
+					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+					if (SUCCEEDED(hr))
+					{
+						size_t x;
+						wcstombs_s(&x, pathBuf, pszFilePath, wcslen(pszFilePath));
+						CoTaskMemFree(pszFilePath);
+					}
+					pItem->Release();
+				}
+			}
+			pFileOpen->Release();
+		}
+		CoUninitialize();
+	}
+	if (!SUCCEEDED(hr))
+		sprintf_s(filepath, 1024, "\0");
+	else
+		sprintf_s(filepath, 1024, "%s", pathBuf);
+}
+
+void MainWindow::ShowSaveFileDialog(char* filepath)
+{
+	char pathBuf[1024];
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+		COINIT_DISABLE_OLE1DDE);
+	if (SUCCEEDED(hr))
+	{
+		IFileSaveDialog *pFileSave;
+
+		// Create the FileOpenDialog object.
+		hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
+			IID_IFileSaveDialog, reinterpret_cast<void**>(&pFileSave));
+
+		if (SUCCEEDED(hr))
+		{
+			// Show the Open dialog box.
+			hr = pFileSave->Show(NULL);
+
+			// Get the file name from the dialog box.
+			if (SUCCEEDED(hr))
+			{
+				IShellItem *pItem;
+				hr = pFileSave->GetResult(&pItem);
+				if (SUCCEEDED(hr))
+				{
+					PWSTR pszFilePath;
+					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+					if (SUCCEEDED(hr))
+					{
+						size_t x;
+						wcstombs_s(&x, pathBuf, pszFilePath, wcslen(pszFilePath));
+						CoTaskMemFree(pszFilePath);
+					}
+					pItem->Release();
+				}
+			}
+			pFileSave->Release();
+		}
+		CoUninitialize();
+	}
+	if (!SUCCEEDED(hr))
+		sprintf_s(filepath, 1024, "\0");
+	else
+		sprintf_s(filepath, 1024, "%s", pathBuf);
 }
 
 void MainWindow::OnClearWorldClicked(WPARAM wParam, LPARAM lParam)
@@ -338,13 +468,39 @@ void MainWindow::OnGenerateWorldClicked(WPARAM wParam, LPARAM lParam)
 
 void MainWindow::OnOpenWorldClicked(WPARAM wParam, LPARAM lParam)
 {
+	char filepath[1024];
+	ShowOpenFileDialog(filepath);
+	if (strlen(filepath) > 0)
+	{
+		int dialogResult = MessageBoxExA(handle,
+			"Вы действительно хотите открыть мир из файла? Текущее состояние будет утеряно.",
+			"Подтвердите действие", MB_YESNO | MB_ICONQUESTION, NULL);
+		if (dialogResult == IDYES)
+		{
+			ResetState();
+			bool result = worldWindow.GetWorld()->ReadFromFile(filepath);
+			InvalidateRect(worldWindow.GetHandle(), NULL, FALSE);
+			DisplayStats();
+
+			if (!result)
+				MessageBoxExA(handle, "Во время чтения файла произошла ошибка", "Ошибка", MB_OK | MB_ICONERROR, NULL);
+		}
+	}
 }
 
 void MainWindow::OnSaveWorldClicked(WPARAM wParam, LPARAM lParam)
 {
+	char filepath[1024];
+	ShowSaveFileDialog(filepath);
+	if (strlen(filepath) > 0)
+	{
+		bool result = worldWindow.GetWorld()->WriteToFile(filepath);
+		if (!result)
+			MessageBoxExA(handle, "Во время записи файла произошла ошибка", "Ошибка", MB_OK | MB_ICONERROR, NULL);
+	}
 }
 
-void MainWindow::OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam)
+void MainWindow::OnSetWorldSizeClicked(WPARAM wParam, LPARAM lParam)
 {
 	int colsCount, rowsCount;
 	try
@@ -411,19 +567,17 @@ void MainWindow::OnDensitySbMoved(WPARAM wParam, LPARAM lParam)
 	worldWindow.SetAreaDensity(pos);
 }
 
-// TODO: если быстро два раза нажать кнопку, процесс виснет
+// TODO: если быстро несколько раз нажать кнопку, процесс виснет
 void MainWindow::OnPlayPauseClicked(WPARAM wParam, LPARAM lParam)
 {
 	WaitForSingleObject(lifeMutex, INFINITE);
 	if (isPaused)
 	{
-		ResumeThread(lifeThread);
 		isPaused = false;
 		SetWindowTextA(playPauseBtn, "Приостановить симуляцию");
 	}
 	else
 	{
-		SuspendThread(lifeThread);
 		isPaused = true;
 		SetWindowTextA(playPauseBtn, "Возобновить симуляцию");
 	}
@@ -540,7 +694,6 @@ void MainWindow::ResetState()
 	if (!isPaused)
 	{
 		isPaused = true;
-		SuspendThread(lifeThread);
 	}
 	worldWindow.ResetState();
 	SetWindowTextA(playPauseBtn, "Запустить симуляцию");
@@ -566,7 +719,9 @@ void MainWindow::DisplayStats()
 			int rc = worldWindow.GetWorld()->GetCellsCountByRace((Cell::Race)i);
 			int percentage = rc * 100 / total;
 			// TODO: на следующей строке процесс виснет, если закрыть программу во время обновления поля
+			OutputDebugStringA("Before that line\n");
 			SendMessageA(racesPBs[i], PBM_SETPOS, percentage, 0);
+			OutputDebugStringA("After that line\n");
 			sprintf_s(buf, "%5d (%d%%)", rc, percentage);
 			SetWindowTextA(racesLabels[i], buf);
 		}
@@ -574,7 +729,7 @@ void MainWindow::DisplayStats()
 
 	sprintf_s(buf, "Поколение: %d\0", worldWindow.GetWorld()->GetGeneration());
 	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(0), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
-	sprintf_s(buf, "Население: %5d/%5d (%d%%)\0", total, square, total * 100 / square);
+	sprintf_s(buf, "Население: %5d/%-5d (%d%%)\0", total, square, square > 0 ? total * 100 / square : 0);
 	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(1), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
 	sprintf_s(buf, "Клеток родилось: %d\0", worldWindow.GetWorld()->GetCellsBorn());
 	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(2), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
@@ -588,15 +743,18 @@ DWORD MainWindow::LifeThreadFunction(LPVOID param)
 	while (!that->isClosing)
 	{
 		DWORD startMs = GetTickCount();
-		WaitForSingleObject(that->lifeMutex, INFINITE);
-		that->worldWindow.GetWorld()->Update();
-		that->DisplayStats();
-		ReleaseMutex(that->lifeMutex);
-		InvalidateRect(that->worldWindow.GetHandle(), NULL, FALSE);
-		if (that->worldWindow.GetWorld()->GetTotalCellsCount() == 0 &&
-				that->isAutostopChecked)
+		if (!that->isPaused)
 		{
-			SendMessageA(that->handle, WM_COMMAND, ID_PLAY_PAUSE, 0);
+			WaitForSingleObject(that->lifeMutex, INFINITE);
+			that->worldWindow.GetWorld()->Update();
+			that->DisplayStats();
+			ReleaseMutex(that->lifeMutex);
+			InvalidateRect(that->worldWindow.GetHandle(), NULL, FALSE);
+			if (that->worldWindow.GetWorld()->GetTotalCellsCount() == 0 &&
+				that->isAutostopChecked)
+			{
+				SendMessageA(that->handle, WM_COMMAND, ID_PLAY_PAUSE, 0);
+			}
 		}
 		DWORD elapsedMs = GetTickCount() - startMs;
 		DWORD delay = (DWORD)(LIFE_TICK_PERIOD_MS / that->speedFactor);
@@ -609,9 +767,7 @@ DWORD MainWindow::LifeThreadFunction(LPVOID param)
 void MainWindow::OnClose()
 {
 	isClosing = true;
-	if (isPaused)
-		ResumeThread(lifeThread);
-	WaitForSingleObject(lifeThread, 100/*00*/);
+	WaitForSingleObject(lifeThread, INFINITE);
 	CloseHandle(lifeThread);
 	CloseHandle(lifeMutex);
 	DestroyWindow(handle);

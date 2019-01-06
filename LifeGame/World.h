@@ -1,6 +1,5 @@
 #pragma once
 #include <Windows.h>
-#include <windowsx.h>
 #include <vector>
 #include <fstream>
 #include <string>
@@ -17,8 +16,8 @@ public:
 	World() : World(1, 1) {}
 	void DrawGrid(HDC, RECT);
 	void DrawCells(HDC, RECT);
-	void ReadPosition(ifstream&, int&, int&);
-	//int LoadPattern(string);
+	bool ReadFromFile(char* filepath);
+	bool WriteToFile(char* filepath);
 	void SetCell(int, int, Cell*);
 	void Update();
 	void ResetState();

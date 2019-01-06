@@ -4,11 +4,11 @@
 #include "WorldWindow.h"
 
 #define IDR_TOOLBAR						110
-#define ID_CLEAR_GRID					40001
-#define ID_GENERATE_GRID				40002
-#define ID_OPEN_GRID					40003
-#define ID_SAVE_GRID					40004
-#define ID_SET_GRID_SIZE				40005
+#define ID_CLEAR_WORLD					40001
+#define ID_GENERATE_WORLD				40002
+#define ID_OPEN_WORLD					40003
+#define ID_SAVE_WORLD					40004
+#define ID_SET_WORLD_SIZE				40005
 #define ID_SELECT_CELL_COLOR			40006
 #define ID_SELECT_CELL_COLOR_LISTBOX	40007
 #define ID_DRAW_MODE					40012
@@ -43,11 +43,11 @@ private:
 	LPARAM lparam;
 
 	HMENU hMenu;
-	HMENU hMenuGrid;
-	HMENU hMenuGridSave;
-	HMENU hMenuGridLoad;
-	HMENU hMenuGridClear;
-	HMENU hMenuGridGenerate;
+	HMENU hMenuWorld;
+	HMENU hMenuWorldClear;
+	HMENU hMenuWorldGenerate;
+	HMENU hMenuWorldSave;
+	HMENU hMenuWorldLoad;
 
 	HWND toolbar;
 	TBBUTTON tbButtons[5];
@@ -55,7 +55,7 @@ private:
 	HWND leftPanel;
 	HWND rowsCountTB;
 	HWND colsCountTB;
-	HWND setGridSizeBtn;
+	HWND setWorldSizeBtn;
 	HWND colorPanel;
 	HWND colorBtn;
 	HWND colorLB;
@@ -84,12 +84,19 @@ private:
 	void CreateToolbar();
 	void CreateLeftPanel();
 	void CreateWorldWindow();
+	void SetTooltips();
+	void SetTooltip(HWND hwnd, char* tooltip);
+
+	//https://msdn.microsoft.com/en-us/library/Bb776913(v=VS.85).aspx
+	//https://docs.microsoft.com/en-us/windows/desktop/learnwin32/example--the-open-dialog-box
+	void ShowOpenFileDialog(char* filepath);
+	void ShowSaveFileDialog(char* filepath);
 
 	void OnClearWorldClicked(WPARAM wParam, LPARAM lParam);
 	void OnGenerateWorldClicked(WPARAM wParam, LPARAM lParam);
 	void OnOpenWorldClicked(WPARAM wParam, LPARAM lParam);
 	void OnSaveWorldClicked(WPARAM wParam, LPARAM lParam);
-	void OnSetGridSizeClicked(WPARAM wParam, LPARAM lParam);
+	void OnSetWorldSizeClicked(WPARAM wParam, LPARAM lParam);
 	void OnDensitySbMoved(WPARAM wParam, LPARAM lParam);
 	void OnPlayPauseClicked(WPARAM wParam, LPARAM lParam);
 	void OnSelectCellColorClicked(WPARAM wParam, LPARAM lParam);
@@ -103,6 +110,4 @@ private:
 	void ClearWorld(int rowsCount, int colsCount);
 	void ResetState();
 	void DisplayStats();
-
-	//void OnClicked(WPARAM wParam, LPARAM lParam);
 };
