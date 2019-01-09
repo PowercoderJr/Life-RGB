@@ -22,7 +22,7 @@ public:
 	HBRUSH GetBrush();
 	Race GetRace();
 	COLORREF GetBrushColor();
-	bool Equals(Cell * cell);
+	bool Equals(Cell* cell);
 	~Cell();
 private:
 	COLORREF brushColor;

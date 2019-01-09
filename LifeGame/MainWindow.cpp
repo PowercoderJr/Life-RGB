@@ -52,10 +52,10 @@ LRESULT __stdcall MainWindow::windowProc(HWND hwnd, UINT message, WPARAM wParam,
 	if (message == WM_NCCREATE)
 	{
 		MainWindow* that = reinterpret_cast<MainWindow*>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
-		SetWindowLongA(hwnd, GWL_USERDATA, reinterpret_cast<LONG>(that));
+		SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG>(that));
 		return DefWindowProcA(hwnd, message, wParam, lParam);
 	}
-	MainWindow* that = reinterpret_cast<MainWindow*>(GetWindowLongA(hwnd, GWL_USERDATA));
+	MainWindow* that = reinterpret_cast<MainWindow*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
 	switch (message)
 	{
 	case WM_CREATE:
@@ -63,7 +63,6 @@ LRESULT __stdcall MainWindow::windowProc(HWND hwnd, UINT message, WPARAM wParam,
 		that->OnCreate();
 		return DefWindowProcA(hwnd, message, wParam, lParam);
 	case WM_SIZE:
-		that->lparam = lParam;
 		that->OnSize();
 		break;
 	case WM_CTLCOLORSTATIC:
@@ -208,10 +207,13 @@ void MainWindow::CreateToolbar()
 	tbButtons[4].idCommand = ID_SAVE_WORLD;
 	tbButtons[4].fsState = TBSTATE_ENABLED;
 	tbButtons[4].fsStyle = TBSTYLE_GROUP;
-	toolbar = CreateToolbarEx(handle, WS_CHILD | WS_VISIBLE | WS_DLGFRAME |
-			TBSTYLE_TOOLTIPS, IDR_TOOLBAR, 0, HINST_COMMCTRL, IDB_STD_SMALL_COLOR,
-			tbButtons, 5, 0, 0, 0, 0, sizeof(TBBUTTON));
-	//SendMessageA(toolbar, TB_AUTOSIZE, 0, 0); // Отправляется из OnResize()
+	toolbar = CreateWindowEx(0, TOOLBARCLASSNAMEA, NULL, WS_CHILD | TBSTYLE_WRAPABLE,
+		0, 0, 0, 0, handle, NULL, hInstance, NULL);
+	HIMAGELIST imageList;// = ImageList_Create(16, 16, ILC_COLOR16 | ILC_MASK, 5, 0);
+	SendMessage(toolbar, TB_LOADIMAGES, (WPARAM)IDB_STD_SMALL_COLOR, (LPARAM)HINST_COMMCTRL);
+	SendMessageA(toolbar, TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
+	SendMessageA(toolbar, TB_ADDBUTTONS, (WPARAM)5, (LPARAM)&tbButtons);
+	ShowWindow(toolbar, TRUE);
 }
 
 void MainWindow::CreateLeftPanel()
@@ -256,11 +258,11 @@ void MainWindow::CreateLeftPanel()
 	/*EnableWindow(densityLabel, false);
 	EnableWindow(densitySB, false);*/
 
-	playPauseBtn = CreateWindowExA(0, "BUTTON", "Запустить симуляцию", WS_CHILD | WS_VISIBLE,
+	playPauseBtn = CreateWindowExA(0, "BUTTON", "Запустить эмуляцию", WS_CHILD | WS_VISIBLE,
 			8, 320, 234, 30, handle, (HMENU)ID_PLAY_PAUSE, hInstance, NULL);
 	autostopChB = CreateWindowExA(0, "BUTTON", "Остановить, если поле чистое", WS_CHILD | WS_VISIBLE | BS_CHECKBOX,
 			8, 360, 234, 20, handle, (HMENU)ID_AUTOSTOP, hInstance, NULL);
-	label = CreateWindowExA(0, "STATIC", "Скорость симуляции:", WS_CHILD | WS_VISIBLE,
+	label = CreateWindowExA(0, "STATIC", "Скорость эмуляции:", WS_CHILD | WS_VISIBLE,
 			8, 394, 150, 20, handle, NULL, hInstance, NULL);
 	speedFactorCB = CreateWindowExA(0, "COMBOBOX", "", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE | LBS_NOTIFY,
 			166, 390, 76, 200, handle, (HMENU)ID_SPEED_FACTOR, hInstance, NULL);
@@ -282,14 +284,15 @@ void MainWindow::CreateLeftPanel()
 	for (int i = 0; i < RACES_COUNT; ++i)
 	{
 		int top = 480 + 30 * i;
-		racesPBs[i] = CreateWindowExA(0, PROGRESS_CLASS, "", WS_CHILD | WS_VISIBLE,
+		racesPBs[i] = CreateWindowExA(0, PROGRESS_CLASSA, "", WS_CHILD | WS_VISIBLE,
 			8, top, 134, 20, handle, NULL, hInstance, NULL);
 		racesLabels[i] = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
 			150, top, 92, 20, handle, NULL, hInstance, NULL);
 		SendMessageA(racesPBs[i], PBM_SETBARCOLOR, 0, colors[i]);
 	}
 
-	statusBar = CreateStatusWindowA(WS_CHILD | WS_VISIBLE, "", handle, ID_STATUS_BAR);
+	statusBar = CreateWindowExA(0, STATUSCLASSNAMEA, (PCTSTR)NULL, SBARS_SIZEGRIP | WS_CHILD | WS_VISIBLE,
+		0, 0, 0, 0, handle, (HMENU)ID_STATUS_BAR, hInstance, NULL);
 	int coords[] = { 200, 400, 600, -1 };
 	SendMessageA(statusBar, SB_SETPARTS, 4, (LPARAM)coords);
 }
@@ -311,7 +314,7 @@ void MainWindow::SetTooltips()
 	SetTooltip(colsCountTB, (char*)"Количество столбцов");
 	SetTooltip(drawDotsRB, (char*)"Один клик - одна клетка");
 	SetTooltip(drawAreasRB, (char*)"Укажите противоположные углы прямоугольника");
-	SetTooltip(autostopChB, (char*)"Приостановить симуляцию, если не останется ни одной живой клетки");
+	SetTooltip(autostopChB, (char*)"Приостановить эмуляцию, если не останется ни одной живой клетки");
 	SetTooltip(racesPBs[0], (char*)"Доля живущих красных клеток");
 	SetTooltip(racesPBs[1], (char*)"Доля живущих зелёных клеток");
 	SetTooltip(racesPBs[2], (char*)"Доля живущих синих клеток");
@@ -320,7 +323,7 @@ void MainWindow::SetTooltips()
 
 void MainWindow::SetTooltip(HWND hwnd, char* tooltip)
 {
-	HWND hTooltip = CreateWindowExA(WS_EX_TOPMOST, TOOLTIPS_CLASS, "TooltipIM",
+	HWND hTooltip = CreateWindowExA(WS_EX_TOPMOST, TOOLTIPS_CLASSA, "TooltipIM",
 		WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		handle, NULL, hInstance, NULL);
@@ -490,10 +493,13 @@ void MainWindow::OnOpenWorldClicked(WPARAM wParam, LPARAM lParam)
 
 void MainWindow::OnSaveWorldClicked(WPARAM wParam, LPARAM lParam)
 {
+	if (!isPaused)
+		SendMessageA(handle, WM_COMMAND, MAKEWPARAM(ID_PLAY_PAUSE, 0), 0);
 	char filepath[1024];
 	ShowSaveFileDialog(filepath);
 	if (strlen(filepath) > 0)
 	{
+
 		bool result = worldWindow.GetWorld()->WriteToFile(filepath);
 		if (!result)
 			MessageBoxExA(handle, "Во время записи файла произошла ошибка", "Ошибка", MB_OK | MB_ICONERROR, NULL);
@@ -574,12 +580,12 @@ void MainWindow::OnPlayPauseClicked(WPARAM wParam, LPARAM lParam)
 	if (isPaused)
 	{
 		isPaused = false;
-		SetWindowTextA(playPauseBtn, "Приостановить симуляцию");
+		SetWindowTextA(playPauseBtn, "Приостановить эмуляцию");
 	}
 	else
 	{
 		isPaused = true;
-		SetWindowTextA(playPauseBtn, "Возобновить симуляцию");
+		SetWindowTextA(playPauseBtn, "Возобновить эмуляцию");
 	}
 	ReleaseMutex(lifeMutex);
 }
@@ -696,7 +702,7 @@ void MainWindow::ResetState()
 		isPaused = true;
 	}
 	worldWindow.ResetState();
-	SetWindowTextA(playPauseBtn, "Запустить симуляцию");
+	SetWindowTextA(playPauseBtn, "Запустить эмуляцию");
 }
 
 void MainWindow::DisplayStats()
@@ -704,37 +710,38 @@ void MainWindow::DisplayStats()
 	char buf[64];
 	int total = worldWindow.GetWorld()->GetTotalCellsCount();
 	int square = worldWindow.GetWorld()->GetSquare();
+	UINT_PTR x;
 	if (total == 0)
 	{
-		for (int i = 0; i < RACES_COUNT; ++i)
+		for (int i = 0; i < RACES_COUNT && !isClosing; ++i)
 		{
-			SendMessageA(racesPBs[i], PBM_SETPOS, 0, 0);
+			SendMessageTimeoutA(racesPBs[i], PBM_SETPOS, 0, 0, SMTO_BLOCK, 100, &x);
 			SetWindowTextA(racesLabels[i], "\0");
 		}
 	}
 	else
 	{
-		for (int i = 0; i < RACES_COUNT; ++i)
+		for (int i = 0; i < RACES_COUNT && !isClosing; ++i)
 		{
 			int rc = worldWindow.GetWorld()->GetCellsCountByRace((Cell::Race)i);
 			int percentage = rc * 100 / total;
-			// TODO: на следующей строке процесс виснет, если закрыть программу во время обновления поля
-			OutputDebugStringA("Before that line\n");
-			SendMessageA(racesPBs[i], PBM_SETPOS, percentage, 0);
-			OutputDebugStringA("After that line\n");
-			sprintf_s(buf, "%5d (%d%%)", rc, percentage);
-			SetWindowTextA(racesLabels[i], buf);
+			SendMessageTimeoutA(racesPBs[i], PBM_SETPOS, percentage, 0, SMTO_BLOCK, 100, &x);
+			sprintf_s(buf, "%5d (%d%%)\0", rc, percentage);
+			SendMessageTimeoutA(racesLabels[i], WM_SETTEXT, NULL, (LPARAM)buf, SMTO_BLOCK, 100, &x);
 		}
 	}
 
-	sprintf_s(buf, "Поколение: %d\0", worldWindow.GetWorld()->GetGeneration());
-	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(0), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
-	sprintf_s(buf, "Население: %5d/%-5d (%d%%)\0", total, square, square > 0 ? total * 100 / square : 0);
-	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(1), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
-	sprintf_s(buf, "Клеток родилось: %d\0", worldWindow.GetWorld()->GetCellsBorn());
-	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(2), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
-	sprintf_s(buf, "Клеток погибло: %d\0", worldWindow.GetWorld()->GetCellsDied());
-	SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(3), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+	if (!isClosing)
+	{
+		sprintf_s(buf, "Поколение: %d\0", worldWindow.GetWorld()->GetGeneration());
+		SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(0), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+		sprintf_s(buf, "Население: %5d/%-5d (%d%%)\0", total, square, square > 0 ? total * 100 / square : 0);
+		SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(1), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+		sprintf_s(buf, "Клеток родилось: %d\0", worldWindow.GetWorld()->GetCellsBorn());
+		SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(2), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+		sprintf_s(buf, "Клеток погибло: %d\0", worldWindow.GetWorld()->GetCellsDied());
+		SendMessageA(statusBar, SB_SETTEXTA, MAKEWPARAM(LOBYTE(3), HIBYTE(SBT_POPOUT)), (LPARAM)buf);
+	}
 }
 
 DWORD MainWindow::LifeThreadFunction(LPVOID param)

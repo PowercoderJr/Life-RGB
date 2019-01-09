@@ -6,8 +6,6 @@
 #include "Cell.h"
 
 using std::vector;
-using std::ifstream;
-using std::string;
 
 class World
 {

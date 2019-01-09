@@ -2,8 +2,6 @@
 #include <vector>
 
 using std::vector;
-//using std::ifstream;
-//using std::ofstream;
 
 inline int Cycled(int input, int base)
 {

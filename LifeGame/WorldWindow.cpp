@@ -133,10 +133,10 @@ LRESULT __stdcall WorldWindow::windowProc(HWND hnd, UINT message, WPARAM wParam,
 	if (message == WM_NCCREATE)
 	{
 		WorldWindow* that = reinterpret_cast<WorldWindow*>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams);
-		SetWindowLong(hnd, GWL_USERDATA, reinterpret_cast<LONG>(that));
+		SetWindowLongPtrA(hnd, GWLP_USERDATA, reinterpret_cast<LONG>(that));
 		return DefWindowProcA(hnd, message, wParam, lParam);
 	}
-	WorldWindow* that = reinterpret_cast<WorldWindow*>(GetWindowLongA(hnd, GWL_USERDATA));
+	WorldWindow* that = reinterpret_cast<WorldWindow*>(GetWindowLongPtrA(hnd, GWLP_USERDATA));
 	switch (message)
 	{
 	case WM_CREATE:
@@ -218,7 +218,6 @@ void WorldWindow::OnPaint()
 
 void WorldWindow::OnMouseButtonDown(UINT msg)
 {
-	WaitForSingleObject(lifeMutex, INFINITE);
 	bool isLMB = msg == WM_LBUTTONDOWN;
 	int i, j;
 	CoordsToIndices(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam), &i, &j);
@@ -238,7 +237,9 @@ void WorldWindow::OnMouseButtonDown(UINT msg)
 				else
 					return nullptr;
 			};
+			WaitForSingleObject(lifeMutex, INFINITE);
 			ModifyArea(i0, j0, i1, j1, isLMB ? areaDensity : 100, cellProvider);
+			ReleaseMutex(lifeMutex);
 		}
 		else
 		{
@@ -249,11 +250,12 @@ void WorldWindow::OnMouseButtonDown(UINT msg)
 	}
 	else
 	{
+		WaitForSingleObject(lifeMutex, INFINITE);
 		world->SetCell(i, j, isLMB ? new Cell(brushColor) : nullptr);
+		ReleaseMutex(lifeMutex);
 	}
 	InvalidateRect(handle, NULL, FALSE);
 	SendMessageA(GetParent(handle), WM_COMMAND, (WPARAM)GetMenu(handle), lparam);
-	ReleaseMutex(lifeMutex);
 }
 
 void WorldWindow::OnClose()

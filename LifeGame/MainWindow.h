@@ -40,7 +40,7 @@ protected:
 private:
 	HINSTANCE hInstance;
 	HWND handle;
-	LPARAM lparam;
+	//LPARAM lparam;
 
 	HMENU hMenu;
 	HMENU hMenuWorld;
